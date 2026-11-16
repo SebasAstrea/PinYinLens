@@ -23,6 +23,7 @@ import com.pinyinlens.ocr.OcrBlock
 import com.pinyinlens.ocr.OcrEngine
 import com.pinyinlens.ocr.OcrImage
 import com.pinyinlens.overlay.OverlayController
+import com.pinyinlens.pinyin.CharPinyin
 import com.pinyinlens.pinyin.Lexicon
 import com.pinyinlens.pinyin.PinyinConverter
 import com.pinyinlens.render.PinyinItem
@@ -59,6 +60,15 @@ class PinYinLensAccessibilityService : AccessibilityService() {
             }
         }
     }
+
+    /**
+     * Re-escaneo diferido tras un cambio de ventana/contenido. Al navegar, la
+     * app anima su cabecera (p. ej. toolbar que colapsa) y el primer escaneo
+     * puede coger coordenadas intermedias: la etiqueta quedaría unos píxeles
+     * sobre el Hanzi. Un único escaneo cuando el layout ya está quieto corrige
+     * la posición sin sondeo continuo (RNF-02).
+     */
+    private val settleScan = Runnable { extractHanzi() }
 
     /**
      * Gancho de prueba (RF-05): recibe un broadcast con una palabra y muestra su
@@ -127,7 +137,13 @@ class PinYinLensAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 scroll.reset()
+                // Un cambio de contenido/ventana también termina cualquier
+                // ocultamiento por scroll (RF-06): si no, tras ocultar la capa
+                // una navegación la dejaba invisible para siempre.
+                overlay?.showContent()
                 extractHanzi()
+                handler.removeCallbacks(settleScan)
+                handler.postDelayed(settleScan, SETTLE_RESCAN_MS)
             }
         }
     }
@@ -198,7 +214,10 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         handler.postDelayed(quietCheck, scroll.quietWindowMs)
     }
 
-    /** Carga el motor de pinyin con el léxico HSK empaquetado como asset. */
+    /**
+     * Carga el motor de pinyin con el léxico HSK y la tabla de respaldo por
+     * carácter, ambos empaquetados como assets (RNF-05: datos fuera del código).
+     */
     private fun loadPinyinConverter(): PinyinConverter {
         val lexicon = try {
             assets.open("hsk_lexicon.cedict").bufferedReader(Charsets.UTF_8).useLines {
@@ -208,24 +227,41 @@ class PinYinLensAccessibilityService : AccessibilityService() {
             Log.e(TAG, "No se pudo cargar hsk_lexicon.cedict", e)
             Lexicon()
         }
-        Log.i(TAG, "RF04 léxico cargado: ${lexicon.size} entradas")
-        return PinyinConverter(lexicon)
+        // Respaldo por carácter: cubre los Hanzi que no forman parte de ninguna
+        // palabra del léxico (三星, 帐/户, 屏/幕, 定/位…), sin los que la etiqueta
+        // salía corta o con una lectura equivocada.
+        val charFallback = try {
+            assets.open("char_pinyin.tsv").bufferedReader(Charsets.UTF_8).useLines {
+                CharPinyin.fromTsv(it)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "No se pudo cargar char_pinyin.tsv", e)
+            emptyMap()
+        }
+        Log.i(
+            TAG,
+            "RF04 léxico cargado: ${lexicon.size} entradas, respaldo: ${charFallback.size} caracteres",
+        )
+        return PinyinConverter(lexicon, charFallback)
     }
 
     private fun extractHanzi() {
         val root = rootInActiveWindow ?: return
+        val t0 = SystemClock.elapsedRealtimeNanos()
         val spans: List<HanziSpan> = scanner.scanFromRoot(root)
+        val scanMs = (SystemClock.elapsedRealtimeNanos() - t0) / 1_000_000.0
         val converter = pinyinConverter
         if (spans.isNotEmpty() && converter != null) {
-            Log.i(TAG, "RF02 spans=${spans.size}")
+            Log.i(TAG, "RF02 spans=${spans.size} scanMs=$scanMs")
             // RF-04/render: convertir cada span a pinyin y dibujarlo alineado.
+            // Se envían TODOS los spans, también los que se quedan sin pinyin
+            // (subtítulos, texto sin entrada léxica): no se les dibuja etiqueta,
+            // pero el layout los necesita como obstáculos para no pisarlos.
             val items = ArrayList<PinyinItem>(spans.size)
             for (s in spans) {
                 val py = converter.toPinyin(s.text)
-                if (py.isNotBlank()) {
-                    items.add(PinyinItem(py, s.left, s.top, s.right, s.bottom))
-                }
-                Log.v(TAG, "RF02 span text='${s.text}' rect=${s.left},${s.top},${s.right},${s.bottom} py='$py'")
+                items.add(PinyinItem(py, s.left, s.top, s.right, s.bottom, s.textSizePx))
+                Log.v(TAG, "RF02 span text='${s.text}' rect=${s.left},${s.top},${s.right},${s.bottom} size=${s.textSizePx} py='$py'")
             }
             pinyinView?.setItems(items)
         } else {
@@ -239,6 +275,7 @@ class PinYinLensAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         handler.removeCallbacks(quietCheck)
+        handler.removeCallbacks(settleScan)
         runCatching { unregisterReceiver(holdTestReceiver) }
         runCatching { unregisterReceiver(ocrTestReceiver) }
         ocr?.close()
@@ -254,5 +291,8 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         const val TAG = "PinYinLens"
         const val ACTION_HOLD_TEST = "com.pinyinlens.HOLD_TEST"
         const val ACTION_OCR_TEST = "com.pinyinlens.OCR_TEST"
+
+        /** Margen para que la animación de navegación de la app termine. */
+        private const val SETTLE_RESCAN_MS = 400L
     }
 }

@@ -131,15 +131,31 @@ ImageView/WebView sin texto → debounce 400 ms → `MediaProjection` 1 frame �
 ## Épica 2 — UI de control
 
 ### Render de pinyin (transversal RF-02/RF-04/RNF-04) — `HECHO (mecanismo)`
-Dibujo del pinyin sobre los caracteres, con escalado y contraste.
-- [x] `PinyinLayout` (tamaño 45–60% altura, mín 9 sp; posición centrada encima) — tests JVM.
+Dibujo del pinyin debajo de los caracteres, con escalado y contraste.
+- [x] `PinyinLayout` (puro, tests JVM): tamaño derivado del Hanzi real, ajuste
+      al ancho de la palabra, posición **debajo** anclada a la tinta, reparto de
+      huecos compartidos, descarte si no cabe sin solapar.
+- [x] `TextSizeEstimator` + `extraRenderingInfo` (API 33+) para el tamaño real
+      del Hanzi, con presupuesto de refrescos por escaneo.
 - [x] `Contrast` (WCAG, relación ≥ 4.5:1) — tests JVM.
-- [x] `PinyinOverlayView` (stroke de alto contraste + relleno) en el overlay.
+- [x] `PinyinOverlayView` (stroke de alto contraste + relleno, compensación del
+      origen de la ventana) en el overlay.
 - [x] Cableado servicio: spans RF-02 → `PinyinConverter` RF-04 → vista; léxico HSK (asset).
-- [x] Verificado en dispositivo (`artifacts/render/render_pinyin2.png`): pinyin
-      dibujado sobre Ajustes en chino, desambiguación 了解→liǎo jiě en runtime.
-- [ ] Pulido de **alineación por carácter** y resolución de **colisiones** entre líneas.
+      Se envían también los spans sin pinyin para usarlos como obstáculos.
+- [x] Re-escaneo diferido (400 ms) para que las animaciones de navegación no
+      dejen las etiquetas desplazadas; y mostrar la capa al cambiar de ventana
+      (antes quedaba oculta tras un scroll).
+- [x] Verificado en dispositivo: `artifacts/render/s8_settings.png` (lista densa),
+      `v_lockscreen.png` (filas de una línea), `h1_home.png` (launcher).
+      Informe: `artifacts/render/render_result.txt`.
+- [ ] Cobertura de léxico por carácter (RF-04): 主屏幕, 锁定, 定位, 指纹, 帐户,
+      微信, 相册 salen incompletos.
+- [ ] Alineación **por carácter** (hoy se centra en la palabra).
 - [ ] Medición formal del **error ≤ 4 dp (RF-02)** con harness, ahora que el pinyin se dibuja.
+
+> Desviación documentada de RNF-04: la UX actual usa el tamaño del Hanzi
+> (`HANZI_SIZE_FACTOR = 1.0`) en vez del 45–60 % del SRS; el ajuste de ancho lo
+> deja en ese rango para palabras largas. Poner el factor a 0.6 restaura el SRS.
 
 ### UI-01 · Activar/desactivar el servicio — `TODO`
 Una de las dos (a decidir en diseño):

@@ -25,6 +25,24 @@ El test `PinyinAccuracyDatasetTest` convierte cada oración con el motor y la
 compara con la columna esperada; A_pinyin = oraciones correctas / total. Aplica
 la **prueba Z de proporciones** (H₀: P ≤ 0.91 vs H₁: P > 0.91, α = 0.05).
 
+### `char_pinyin.tsv` — respaldo por carácter
+
+El léxico HSK solo contiene palabras: un carácter que no forma parte de ninguna
+palabra conocida (星 de 三星, 帐/户, 屏/幕, 纹, 若…) se quedaba sin pinyin y la
+etiqueta salía corta o con una lectura equivocada.
+
+`scripts/build_char_pinyin.ps1` deriva la lectura de cada carácter desde
+`complete.min.json` (votando la sílaba de cada palabra; las entradas de un solo
+carácter pesan más) y escribe:
+
+```
+<char>TAB<pinyin_numérico>     # p. ej. 星\txing1
+```
+
+Se versiona aquí y se copia a `app/src/main/assets/char_pinyin.tsv` (la app lo
+carga junto al léxico de palabras). Es un respaldo: si hay palabra en el léxico,
+manda la palabra (desambigua polífonos como 行/长/了/地).
+
 ## Estado y alcance
 
 El corpus semilla incluido es pequeño (valida el MECANISMO: segmentación y

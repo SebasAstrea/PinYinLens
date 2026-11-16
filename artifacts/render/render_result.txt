@@ -1,27 +1,60 @@
 Render de pinyin — verificación en dispositivo
 Fecha: 2026-11-16
-Dispositivo: SM-A226BR (Android 13), sistema en chino.
+Dispositivo: SM-A226BR (Android 13), sistema en chino, ADB.
 
 Implementación (módulo render):
-- PinyinLayout: cálculo puro de tamaño (45-60% de la altura del Hanzi, mín 9 sp)
-  y posición (centrado, encima del carácter). Tests JVM.
-- Contrast: cálculo WCAG (luminancia, relación, >= 4.5:1). Tests JVM.
-- PinyinOverlayView: dibuja cada etiqueta con contorno (stroke) negro + relleno
-  blanco para contraste alto sobre cualquier fondo (RNF-04).
+- PinyinLayout: layout puro (JVM, TextMeasurer inyectable). Reglas:
+  * Tamaño: parte del tamaño REAL del texto Hanzi (AccessibilityNodeInfo
+    .extraRenderingInfo.textSizeInPx, vía refreshWithExtraData en API 33+);
+    si se desconoce, estima por geometría (TextSizeEstimator) y cae a
+    FALLBACK_RATIO * alto de caja. Nunca supera el del Hanzi; se reduce lo
+    justo para caber en el ancho de su palabra (WIDTH_FILL 0.98) y así no
+    invadir la etiqueta vecina. Mínimo 9 sp, tope 48 sp.
+  * Posición: DEBAJO del Hanzi. Se ancla a la TINTA del carácter (centro de
+    la caja ± 0.5 em), no al box del nodo, así aprovecha el interlineado de
+    las listas (título + subtítulo). Si el hueco no da para el tamaño ideal,
+    se reduce hasta TIGHT_FLOOR (60% del mínimo) para seguir pegado a su
+    Hanzi. Si aun así no cabe ni debajo ni arriba, no se dibuja: sin
+    solapamientos (RNF-04). Cuando dos filas comparten hueco, se reparte a la
+    mitad.
+  * Descarte: pinyin que no cabe a lo ancho ni al mínimo (p. ej. un párrafo
+    entero como un solo nodo) no se dibuja.
+- Contrast: cálculo WCAG (>= 4.5:1). Etiqueta con contorno negro + relleno
+  blanco (stroke escalado con el tamaño).
+- PinyinOverlayView: compensa el origen de la ventana (getLocationOnScreen)
+  porque la capa no empieza en y=0 de la pantalla (barra de estado).
 - Cableado al AccessibilityService: spans (RF-02) -> PinyinConverter (RF-04) ->
-  PinyinOverlayView, con el léxico HSK (asset hsk_lexicon.cedict).
+  vista. Se envían TODOS los spans (también los que quedan sin pinyin) para
+  que el layout los use como obstáculos y no dibuje encima.
+- Escaneo: se refresca en WINDOW_STATE/CONTENT_CHANGED y tras el scroll
+  (RF-06). Además se reprograma un re-escaneo a los 400 ms para que la
+  animación de navegación (toolbar que colapsa) no deje las etiquetas
+  desplazadas. Un cambio de ventana vuelve a mostrar la capa si el scroll la
+  había ocultado.
 
-Verificación visual (render_pinyin2.png): el pinyin se dibuja sobre los
-caracteres de la pantalla de Ajustes en chino, legible, con escalado y contraste.
-Desambiguación contextual confirmada en runtime: 了解更多 -> 'liǎo jiě gēng duō'
-(了 = liǎo, no le).
+Evidencia (capturas en artifacts/render/):
+- s8_settings.png     Ajustes (lista densa título+subtítulo): todo el pinyin
+                      queda debajo, sin solaparse con subtítulos ni con la
+                      fila vecina. En filas densas se reduce (~40% del Hanzi).
+- v_lockscreen.png    Ajustes > 锁定屏幕 (filas de una línea): pinyin al
+                      mismo tamaño que su Hanzi, debajo, ocupando el hueco
+                      entre filas.
+- h1_home.png         Launcher: etiquetas de iconos con su pinyin debajo.
 
-Límites observados (pendientes de pulido / endurecimiento RNF-04):
-- Alineación: el pinyin cae sobre la palabra pero no perfectamente centrado por
-  carácter; el error puede superar 4 dp en algunos casos (métrica de RF-02).
-- Solapamiento entre líneas muy juntas (subtítulos): falta resolución de colisiones.
-- Cobertura de léxico: algunas palabras (p. ej. 分享) no están completas en el
-  léxico HSK y su pinyin sale parcial.
+Desviación consciente del SRS: RNF-04 pide 45–60% del alto del Hanzi con
+mínimo 9 sp. La UX pedida para esta iteración es "mismo tamaño que su Hanzi":
+HANZI_SIZE_FACTOR = 1.0 (en la práctica el ajuste de ancho lo deja en 45–65%
+para palabras largas). Para volver al rango del SRS basta ponerlo a 0.6.
 
-VEREDICTO render: mecanismo validado (dibujo, escalado, contraste WCAG). Pulido
-de alineación/colisiones y medición formal del error <= 4 dp (RF-02) pendientes.
+Límites conocidos (no bloquean la colocación, sí la calidad del pinyin):
+- Cobertura de léxico HSK (RF-04): faltan caracteres sueltos y palabras, así
+  que el pinyin sale incompleto o con lectura equivocada. Ejemplos medidos:
+  主屏幕 -> '' ; 锁定屏幕 -> 'suǒ' ; 定位服务 -> 'wèi' ; 指纹 -> 'zhǐ' ;
+  三星帐户 -> 'sān' ; 微信 -> 'xìn' ; 相册 -> 'cè' ; 模式 -> 'mó'.
+- Filas muy densas: el pinyin baja a ~40% del Hanzi (no cabe más sin solapar).
+- Alineación por carácter: centrado en la palabra, no sobre cada carácter.
+
+VEREDICTO render: colocación debajo + sin solapamientos + tamaño derivado del
+Hanzi verificado en dispositivo. Pendiente: (1) política para filas densas,
+(2) completar léxico por carácter (RF-04), (3) medición formal del error <= 4 dp
+(RF-02) con harness.

@@ -15,6 +15,11 @@ data class HanziSpan(
     val top: Int,
     val right: Int,
     val bottom: Int,
+    /**
+     * Tamaño de fuente real del texto origen, en px (0 si el nodo no lo expone).
+     * El render lo usa para dibujar el pinyin al mismo tamaño que su Hanzi.
+     */
+    val textSizePx: Float = 0f,
 ) {
     val width: Int get() = right - left
     val height: Int get() = bottom - top

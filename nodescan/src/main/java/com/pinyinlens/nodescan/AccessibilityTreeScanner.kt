@@ -1,6 +1,8 @@
 package com.pinyinlens.nodescan
 
 import android.graphics.Rect
+import android.os.Build
+import android.os.Bundle
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
@@ -43,12 +45,21 @@ class AccessibilityTreeScanner(
         val stack = ArrayDeque<Pair<AccessibilityNodeInfo, Int>>()
         stack.addLast(root to 0)
         var visited = 0
+        var renderInfoBudget = MAX_RENDER_INFO_REFRESHES
 
         while (stack.isNotEmpty() && visited < maxNodes) {
             val (node, depth) = stack.removeLast()
             visited++
 
-            val span = toSpanOrNull(node)
+            // El tamaño real exige un refresh (IPC) por nodo; se acota para no
+            // romper el presupuesto de latencia (RNF-01). El resto usa la
+            // estimación del layout a partir de la caja.
+            val span = toSpanOrNull(node) {
+                if (renderInfoBudget <= 0) 0f else {
+                    renderInfoBudget--
+                    textSizePx(node)
+                }
+            }
             if (span != null) result.add(span)
 
             if (depth < maxDepth) {
@@ -62,7 +73,10 @@ class AccessibilityTreeScanner(
     }
 
     /** Convierte un nodo en HanziSpan si pasa la política; si no, null. */
-    private fun toSpanOrNull(node: AccessibilityNodeInfo): HanziSpan? {
+    private fun toSpanOrNull(
+        node: AccessibilityNodeInfo,
+        hanziTextSize: () -> Float,
+    ): HanziSpan? {
         val text = node.text
         val bounds = Rect()
         node.getBoundsInScreen(bounds)
@@ -82,7 +96,25 @@ class AccessibilityTreeScanner(
             top = bounds.top,
             right = bounds.right,
             bottom = bounds.bottom,
+            textSizePx = TextSizeEstimator.estimate(text, bounds.width(), bounds.height())
+                .takeIf { it > 0f }
+                ?: hanziTextSize(),
         )
+    }
+
+    /** Tamaño de fuente del nodo en px; 0 si el sistema no lo expone. */
+    private fun textSizePx(node: AccessibilityNodeInfo): Float {
+        // API 33+: el framework puede publicar el tamaño real del texto si el
+        // nodo lo declara como dato extra (EXTRA_DATA_RENDERING_INFO_KEY).
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return 0f
+        return try {
+            val available = node.availableExtraData
+            if (available == null || !available.contains(EXTRA_DATA_RENDERING_INFO)) return 0f
+            if (!node.refreshWithExtraData(EXTRA_DATA_RENDERING_INFO, Bundle())) return 0f
+            node.extraRenderingInfo?.textSizeInPx ?: 0f
+        } catch (e: IllegalStateException) {
+            0f
+        }
     }
 
     private fun isSecureWindow(window: AccessibilityWindowInfo): Boolean {
@@ -96,6 +128,17 @@ class AccessibilityTreeScanner(
     companion object {
         const val DEFAULT_MAX_DEPTH = 60
         const val DEFAULT_MAX_NODES = 5000
+
+        /**
+         * Máximo de nodos por barrido cuyo tamaño real de fuente se pide al
+         * sistema. Cada consulta es un IPC (~1–2 ms); 24 acota el coste a ~30 ms
+         * para respetar el P95 de 50 ms de RNF-01.
+         */
+        const val MAX_RENDER_INFO_REFRESHES = 24
+
+        /** Dato extra de API 33 que expone el tamaño/color real del texto. */
+        private const val EXTRA_DATA_RENDERING_INFO =
+            AccessibilityNodeInfo.EXTRA_DATA_RENDERING_INFO_KEY
 
         /** FLAG_SECURE de LayoutParams, para referencia en pruebas/documentación. */
         const val FLAG_SECURE = WindowManager.LayoutParams.FLAG_SECURE
