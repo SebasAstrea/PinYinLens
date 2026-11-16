@@ -15,4 +15,5 @@ kotlin {
 
 dependencies {
     testImplementation(libs.junit)
+    testImplementation(project(":stats"))
 }

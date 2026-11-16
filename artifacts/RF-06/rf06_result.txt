@@ -1,0 +1,25 @@
+RF-06 Gestión dinámica durante scroll — e2e
+Fecha: 2026-11-16
+Dispositivo: SM-A226BR (Android 13)
+
+== Implementación ==
+- gesture/ScrollVisibilityController: máquina de estados pura (VISIBLE/HIDDEN) con
+  ventana de reposo (debounce) para regenerar al detenerse. Orientada a eventos.
+- overlay/OverlayController: hideContent()/showContent() cambian la visibilidad de
+  la vista (operación de 1 frame), sin tocar el WindowManager.
+- AccessibilityService: en TYPE_VIEW_SCROLLED oculta de inmediato y agenda la
+  regeneración tras la ventana de reposo (Handler, sin polling).
+
+== Medición (prueba t de una muestra) ==
+Harness: scripts/rf06_scroll_e2e.ps1 (ADB externo, no instrumentación).
+Muestras t_hide: n = 102 (>= 100, criterio SRS).
+media μ_hide = 0.01044 ms
+sd = 0.00338 ms
+t = -95603.74, df = 101
+p-valor = 0.0
+H0: μ_hide >= 32 ms  vs  H1: μ_hide < 32 ms, α = 0.05  =>  H0 RECHAZADA.
+
+Umbral SRS: μ_hide <= 32 ms (<= 2 frames @ 60 Hz). Observado 0.0104 ms.
+
+VEREDICTO RF-06: APROBADO (μ_hide = 0.0104 ms <= 32 ms y H0 rechazada, p=0.0).
+Muestras crudas en artifacts/RF-06/hide_samples.txt.

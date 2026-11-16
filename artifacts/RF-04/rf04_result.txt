@@ -1,0 +1,32 @@
+RF-04 Segmentación léxica y conversión contextual a pinyin
+Fecha: 2026-11-16
+
+== Implementación (módulo pinyin, JVM puro) ==
+- ToneMarks: tono numérico (ni3) -> diacrítico (nǐ), reglas estándar de colocación.
+- Lexicon: Trie + carga desde CC-CEDICT (RNF-05: datos desacoplados del binario).
+- PinyinConverter: segmentación por máxima coincidencia hacia adelante +
+  desambiguación polifónica por contexto (la palabra manda sobre el carácter).
+
+== Desambiguación polifónica (caracteres del SRS: 行 长 着 了 地) ==
+Verificada por PinyinConverterTest:
+  银行 -> yín háng   / 不行 -> bù xíng
+  长大 -> zhǎng dà   / 长度 -> cháng dù
+  了解 -> liǎo jiě   / 了   -> le
+  着急 -> zháo jí     / 看着 -> kàn zhe
+  慢慢地 -> màn màn de / 地方 -> dì fāng
+
+== Validación estadística (prueba Z de proporciones) ==
+Corpus semilla (datasets/pinyin_corpus.tsv): A_pinyin = 1.0 (25/25).
+Z = 1.572, p = 0.0579. Con n=25 NO se rechaza H0:P<=0.91 (muestra insuficiente),
+lo que confirma por qué el SRS exige n>=100.
+
+Umbral SRS: A_pinyin >= 0.94 sobre n=500, Z unilateral H0:P<=0.91, p<=0.05.
+
+== Estado ==
+Motor COMPLETO y validado en su mecanismo (segmentación + tonos + polífonos).
+Gate estadístico formal (A_pinyin>=0.94, n=500) PREPARADO en
+PinyinAccuracyDatasetTest: se activa automáticamente al colocar en datasets/ un
+CC-CEDICT completo y 500 oraciones anotadas. No requiere cambios de código.
+
+VEREDICTO RF-04 (motor): APROBADO en mecanismo.
+Pendiente: dato real CC-CEDICT + corpus n=500 para la cifra de aceptación formal.

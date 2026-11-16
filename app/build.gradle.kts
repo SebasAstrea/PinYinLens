@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.material)
 
     testImplementation(libs.junit)
+    testImplementation(project(":stats"))
 
     androidTestImplementation(project(":stats"))
     androidTestImplementation(libs.androidx.junit)

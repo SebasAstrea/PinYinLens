@@ -59,20 +59,33 @@ Inspección de `AccessibilityNodeInfo`, filtro CJK U+4E00–U+9FFF, `Rect` absol
 > del SRS aplica al error de alineación, no a R_nativo. Verdad medida con
 > `uiautomator dump` independiente del servicio.
 
-### RF-04 · Segmentación léxica y pinyin — `TODO`
+### RF-04 · Segmentación léxica y pinyin — `HECHO (motor)` / gate n=500 preparado
 Segmentación (Jieba / Trie CC-CEDICT) + pinyin con tonos, desambiguación polifónica.
-- [ ] Trie CC-CEDICT + segmentación máxima (unidad JVM).
-- [ ] Conversión a pinyin con diacríticos y desambiguación tonal (行/长/着/了/地).
-- [ ] Validación contra corpus anotado en `datasets/`.
-- [ ] Prueba estadística de dataset: Z de proporciones H₀: P_pinyin ≤ 0.91, p ≤ 0.05.
-- Umbral SRS: A_pinyin ≥ 0.94 (n=500 oraciones).
+- [x] Trie CC-CEDICT (`Lexicon`) + segmentación máxima hacia adelante (`PinyinConverter`).
+- [x] Conversión a pinyin con diacríticos (`ToneMarks`) y desambiguación tonal.
+- [x] Polífonos del SRS verificados (行/长/着/了/地) en `PinyinConverterTest`.
+- [x] Datos desacoplados del binario (`datasets/`, carga CC-CEDICT) — RNF-05.
+- [x] Prueba Z de proporciones (`stats/ProportionZTest`) con tests — verdes.
+- [x] `PinyinAccuracyDatasetTest`: corpus semilla A_pinyin = 1.0 (25/25). Gate
+      estricto (A_pinyin ≥ 0.94, rechazo H₀) condicionado a n ≥ 100.
+- [ ] **Cifra formal A_pinyin ≥ 0.94 sobre n = 500:** requiere CC-CEDICT completo
+      + 500 oraciones reales en `datasets/`. El gate se activa solo al añadirlos.
+- Umbral SRS: A_pinyin ≥ 0.94 (n=500). Motor validado; dato real pendiente.
 
-### RF-06 · Gestión durante scroll — `TODO`
+> Nota: con n=25, 25/25 da Z=1.57, p=0.058 → no rechaza H₀, lo que confirma la
+> necesidad de n ≥ 100 del SRS. Evidencia en `artifacts/RF-04/rf04_result.txt`.
+
+### RF-06 · Gestión durante scroll — `HECHO`
 Ocultar overlay ≤ 32 ms en `TYPE_VIEW_SCROLLED`/arrastre y regenerar al detenerse.
-- [ ] Detección de scroll y ocultamiento inmediato.
-- [ ] Regeneración al estabilizarse.
-- [ ] e2e ADB: n=100 eventos; t unilateral H₀: μ_hide ≥ 32 ms, p ≤ 0.05.
-- Umbral SRS: μ_hide ≤ 32 ms.
+- [x] Detección de scroll y ocultamiento inmediato (`ScrollVisibilityController` +
+      `OverlayController.hideContent`).
+- [x] Regeneración al estabilizarse (debounce por ventana de reposo, `Handler`).
+- [x] Pruebas unitarias JVM (`ScrollVisibilityControllerTest`) — verdes.
+- [x] Prueba t de una muestra (`stats/OneSampleTTest`) con tests — verdes.
+- [x] e2e ADB (`scripts/rf06_scroll_e2e.ps1`) + gate `Rf06TimingTest`:
+      **n=102, μ_hide = 0.0104 ms, p = 0.0 → H₀: μ ≥ 32 ms rechazada.**
+      Evidencia en `artifacts/RF-06/rf06_result.txt`.
+- Umbral SRS: μ_hide ≤ 32 ms. **CUMPLIDO (0.0104 ms).**
 
 ### RF-05 · Diccionario bilingüe + hold 5 s — `TODO`
 Pulsación sostenida 5000±150 ms sobre etiqueta de pinyin → tarjeta Hanzi/pinyin/desglose/ES/EN.

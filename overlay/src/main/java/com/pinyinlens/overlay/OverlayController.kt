@@ -50,6 +50,24 @@ class OverlayController(
     /** Devuelve la vista contenedora donde `render` adjunta el pinyin, o null. */
     fun contentView(): View? = container
 
+    /**
+     * Oculta el contenido de la capa sin quitarla del WindowManager (RF-06).
+     * Cambia la visibilidad de la vista a INVISIBLE, una operación de un solo
+     * frame, muy por debajo del presupuesto de 32 ms. Idempotente.
+     */
+    fun hideContent() {
+        container?.let { if (it.visibility != View.INVISIBLE) it.visibility = View.INVISIBLE }
+    }
+
+    /** Vuelve a mostrar el contenido de la capa (RF-06, al detenerse el scroll). */
+    fun showContent() {
+        container?.let { if (it.visibility != View.VISIBLE) it.visibility = View.VISIBLE }
+    }
+
+    /** True si el contenido de la capa está visible. */
+    val isContentVisible: Boolean
+        get() = container?.visibility == View.VISIBLE
+
     /** Quita la capa si está presente. Idempotente. */
     fun hide() {
         val view = container ?: return
