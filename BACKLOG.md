@@ -87,14 +87,23 @@ Ocultar overlay ≤ 32 ms en `TYPE_VIEW_SCROLLED`/arrastre y regenerar al detene
       Evidencia en `artifacts/RF-06/rf06_result.txt`.
 - Umbral SRS: μ_hide ≤ 32 ms. **CUMPLIDO (0.0104 ms).**
 
-### RF-05 · Diccionario bilingüe + hold 5 s — `TODO`
+### RF-05 · Diccionario bilingüe + hold 5 s — `HECHO (mecanismo)` / datos y enganche pendientes
 Pulsación sostenida 5000±150 ms sobre etiqueta de pinyin → tarjeta Hanzi/pinyin/desglose/ES/EN.
-- [ ] Esquema SQLite CC-CEDICT + glosas ES/EN, desacoplado del binario (RNF-05).
-- [ ] Consulta indexada < 15 ms (RNF-01).
-- [ ] Detección de hold 5 s sin propagar clic a la app inferior.
-- [ ] Tarjeta modal flotante.
-- [ ] e2e ADB: n=100 holds + n=200 scroll/tap (0 falsos positivos); binomial H₀: P_hold ≤ 0.93, p ≤ 0.05.
-- Umbral SRS: T_hold ≥ 0.97, C_dic ≥ 0.98 (HSK 1–6).
+- [x] Esquema SQLite CC-CEDICT + glosas ES/EN (`SqliteDictionary`), indexado y
+      desacoplado del binario (RNF-05). Semilla `DictionarySeed`.
+- [x] Consulta indexada < 15 ms (RNF-01): media 1.76 ms, máx 3.52 ms (20 consultas).
+- [x] Detección de hold 5 s (`HoldDetector`), rechaza taps/scroll sin propagar clic.
+- [x] Lógica de tarjeta pura (`DictionaryCard`/`DictionaryCardBuilder`) + vista
+      `DictionaryCardView`. Verificada en dispositivo (captura `rf05_card.png`).
+- [x] Pruebas unitarias JVM (`HoldDetectorTest`, `DictionaryCardBuilderTest`) — verdes.
+- [x] Gate binomial (`HoldDetectorAcceptanceTest`): **T_hold = 1.0 (100/100),
+      p = 7.05e-4 → H₀: P ≤ 0.93 rechazada; 0 falsos positivos en n=200.**
+- [ ] **C_dic ≥ 0.98 (HSK 1–6):** requiere CC-CEDICT completo + glosas ES/EN reales.
+- [ ] **Enganche del hold a las zonas de pinyin dibujadas:** depende de RF-04/render.
+      El camino hold→tarjeta se verificó vía broadcast de prueba.
+- Umbral SRS: T_hold ≥ 0.97 **CUMPLIDO**, 0% FP **CUMPLIDO**, C_dic pendiente de datos.
+
+> Evidencia en `artifacts/RF-05/` (reporte + captura de la tarjeta).
 
 ### RF-03 · OCR local sobre imágenes — `TODO`
 ImageView/WebView sin texto → debounce 400 ms → `MediaProjection` 1 frame → ROI → OCR local.

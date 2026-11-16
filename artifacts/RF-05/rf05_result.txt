@@ -1,0 +1,38 @@
+RF-05 Diccionario bilingüe + pulsación sostenida (hold 5 s) — e2e
+Fecha: 2026-11-16
+Dispositivo: SM-A226BR (Android 13)
+
+== Implementación ==
+- gesture/HoldDetector: máquina de estados pura para el hold de 5000±150 ms.
+  Rechaza taps rápidos (<500 ms) y scrolls (desplazamiento > slop).
+- dictionary/: DictionaryEntry, CharacterGloss, DictionarySource (interfaz),
+  DictionaryCard + DictionaryCardBuilder (desglose por carácter). Lógica pura.
+- app/dict/SqliteDictionary: base SQLite indexada por 'simplified' (RNF-05,
+  desacoplada del binario), consulta < 15 ms (RNF-01). + DictionarySeed.
+- app/ui/DictionaryCardView: tarjeta flotante sobre el overlay.
+- AccessibilityService: camino hold -> consulta -> tarjeta.
+
+== Detector de hold (gate binomial, HoldDetectorAcceptanceTest) ==
+n=100 holds válidos: T_hold = 1.0 (100/100). p=7.05e-4 -> H0:P<=0.93 RECHAZADA.
+n=200 taps rápidos/scroll: 0 falsos positivos.
+Umbral SRS: T_hold >= 0.97 (CUMPLIDO); 0% falsos positivos (CUMPLIDO).
+
+== Consulta a diccionario (RNF-01 < 15 ms) ==
+20 consultas en estado estable: media = 1.76 ms, máx = 3.52 ms, todas < 15 ms.
+Primera consulta (con apertura de DB): 5.2 ms. CUMPLIDO.
+
+== Tarjeta bilingüe (verificación visual: rf05_card.png) ==
+学习 （學習） / xuéxí / 学 xué aprender  习 xí practicar /
+ES: estudiar; aprender / EN: to study; to learn.
+Contiene: Hanzi simpl/trad, pinyin, desglose por carácter, traducción ES y EN.
+
+== Alcance / pendientes ==
+- Completitud C_dic >= 0.98 (HSK 1-6): requiere CC-CEDICT completo + glosas ES/EN
+  (semilla de 20 entradas para verificación; dato real desacoplado, RNF-05).
+- Integración del hold con las zonas de pinyin dibujadas: depende de render
+  (RF-04/render). El camino hold->tarjeta se verificó vía broadcast de prueba;
+  la detección del hold está validada por HoldDetector(+gate).
+
+VEREDICTO RF-05: T_hold=1.0 (>=0.97), 0 falsos positivos, consulta<15ms, tarjeta
+bilingüe completa. APROBADO en mecanismo. Completitud de datos pendiente de
+CC-CEDICT real; enganche táctil al pinyin pendiente de render.

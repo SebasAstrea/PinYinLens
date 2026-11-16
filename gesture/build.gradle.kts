@@ -25,5 +25,6 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
+    testImplementation(project(":stats"))
     androidTestImplementation(libs.androidx.junit)
 }
