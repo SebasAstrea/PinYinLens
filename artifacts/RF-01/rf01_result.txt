@@ -1,0 +1,14 @@
+﻿RF-01 Overlay persistence e2e
+Fecha: 2026-11-16T12:16:24.0097259-06:00
+Dispositivo: SM-A226BR
+n (transiciones): 100
+exitos: 100
+P_overlay: 1
+Umbral SRS: >= 0.98
+H0: P_overlay <= 0.95 ; alpha=0.05 (binomial unilateral)
+Nota: con n=100 y p0=0.95, rechazar H0 exige >= 99 exitos.
+
+p-valor (binomial, X>=100): 0.005920529220334
+rechaza H0: True
+VEREDICTO RF-01: APROBADO (P_overlay=1.0 >= 0.98 y H0 rechazada)
+

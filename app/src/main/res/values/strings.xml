@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PinYinLens</string>
+    <string name="accessibility_service_label">PinYinLens — asistencia de lectura</string>
+    <string name="accessibility_service_description">Superpone pinyin sobre texto chino en pantalla. Todo el procesamiento es local y sin conexión.</string>
+    <string name="main_status_idle">Servicio inactivo</string>
+    <string name="main_open_accessibility">Abrir ajustes de accesibilidad</string>
+</resources>
