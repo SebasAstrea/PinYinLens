@@ -23,6 +23,10 @@ import com.pinyinlens.ocr.OcrBlock
 import com.pinyinlens.ocr.OcrEngine
 import com.pinyinlens.ocr.OcrImage
 import com.pinyinlens.overlay.OverlayController
+import com.pinyinlens.pinyin.Lexicon
+import com.pinyinlens.pinyin.PinyinConverter
+import com.pinyinlens.render.PinyinItem
+import com.pinyinlens.render.PinyinOverlayView
 import com.pinyinlens.ui.DictionaryCardView
 
 /**
@@ -42,6 +46,8 @@ class PinYinLensAccessibilityService : AccessibilityService() {
     private var dictionary: SqliteDictionary? = null
     private var cardView: DictionaryCardView? = null
     private var ocr: OcrEngine? = null
+    private var pinyinConverter: PinyinConverter? = null
+    private var pinyinView: PinyinOverlayView? = null
 
     /** Reagenda la comprobación de reposo tras cada scroll (RF-06). */
     private val quietCheck = object : Runnable {
@@ -84,6 +90,19 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         Log.i(TAG, "AccessibilityService conectado")
         overlay = OverlayController(this).also { it.show() }
+        // RF-04/render: lienzo de pinyin dentro del overlay + motor de conversión.
+        (overlay?.contentView() as? ViewGroup)?.let { container ->
+            val view = PinyinOverlayView(this)
+            container.addView(
+                view,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+            pinyinView = view
+        }
+        pinyinConverter = loadPinyinConverter()
         dictionary = SqliteDictionary.open(this).also {
             val n = SqliteDictionary.loadHskIfNeeded(this, it)
             if (n > 0) Log.i(TAG, "RF05 diccionario HSK cargado: $n entradas")
@@ -179,14 +198,38 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         handler.postDelayed(quietCheck, scroll.quietWindowMs)
     }
 
+    /** Carga el motor de pinyin con el léxico HSK empaquetado como asset. */
+    private fun loadPinyinConverter(): PinyinConverter {
+        val lexicon = try {
+            assets.open("hsk_lexicon.cedict").bufferedReader(Charsets.UTF_8).useLines {
+                Lexicon.fromCcCedict(it)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "No se pudo cargar hsk_lexicon.cedict", e)
+            Lexicon()
+        }
+        Log.i(TAG, "RF04 léxico cargado: ${lexicon.size} entradas")
+        return PinyinConverter(lexicon)
+    }
+
     private fun extractHanzi() {
         val root = rootInActiveWindow ?: return
         val spans: List<HanziSpan> = scanner.scanFromRoot(root)
-        if (spans.isNotEmpty()) {
+        val converter = pinyinConverter
+        if (spans.isNotEmpty() && converter != null) {
             Log.i(TAG, "RF02 spans=${spans.size}")
+            // RF-04/render: convertir cada span a pinyin y dibujarlo alineado.
+            val items = ArrayList<PinyinItem>(spans.size)
             for (s in spans) {
-                Log.v(TAG, "RF02 span text='${s.text}' rect=${s.left},${s.top},${s.right},${s.bottom}")
+                val py = converter.toPinyin(s.text)
+                if (py.isNotBlank()) {
+                    items.add(PinyinItem(py, s.left, s.top, s.right, s.bottom))
+                }
+                Log.v(TAG, "RF02 span text='${s.text}' rect=${s.left},${s.top},${s.right},${s.bottom} py='$py'")
             }
+            pinyinView?.setItems(items)
+        } else {
+            pinyinView?.clearItems()
         }
     }
 

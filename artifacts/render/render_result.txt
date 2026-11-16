@@ -1,0 +1,27 @@
+Render de pinyin — verificación en dispositivo
+Fecha: 2026-11-16
+Dispositivo: SM-A226BR (Android 13), sistema en chino.
+
+Implementación (módulo render):
+- PinyinLayout: cálculo puro de tamaño (45-60% de la altura del Hanzi, mín 9 sp)
+  y posición (centrado, encima del carácter). Tests JVM.
+- Contrast: cálculo WCAG (luminancia, relación, >= 4.5:1). Tests JVM.
+- PinyinOverlayView: dibuja cada etiqueta con contorno (stroke) negro + relleno
+  blanco para contraste alto sobre cualquier fondo (RNF-04).
+- Cableado al AccessibilityService: spans (RF-02) -> PinyinConverter (RF-04) ->
+  PinyinOverlayView, con el léxico HSK (asset hsk_lexicon.cedict).
+
+Verificación visual (render_pinyin2.png): el pinyin se dibuja sobre los
+caracteres de la pantalla de Ajustes en chino, legible, con escalado y contraste.
+Desambiguación contextual confirmada en runtime: 了解更多 -> 'liǎo jiě gēng duō'
+(了 = liǎo, no le).
+
+Límites observados (pendientes de pulido / endurecimiento RNF-04):
+- Alineación: el pinyin cae sobre la palabra pero no perfectamente centrado por
+  carácter; el error puede superar 4 dp en algunos casos (métrica de RF-02).
+- Solapamiento entre líneas muy juntas (subtítulos): falta resolución de colisiones.
+- Cobertura de léxico: algunas palabras (p. ej. 分享) no están completas en el
+  léxico HSK y su pinyin sale parcial.
+
+VEREDICTO render: mecanismo validado (dibujo, escalado, contraste WCAG). Pulido
+de alineación/colisiones y medición formal del error <= 4 dp (RF-02) pendientes.

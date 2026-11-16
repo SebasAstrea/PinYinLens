@@ -130,6 +130,17 @@ ImageView/WebView sin texto → debounce 400 ms → `MediaProjection` 1 frame �
 
 ## Épica 2 — UI de control
 
+### Render de pinyin (transversal RF-02/RF-04/RNF-04) — `HECHO (mecanismo)`
+Dibujo del pinyin sobre los caracteres, con escalado y contraste.
+- [x] `PinyinLayout` (tamaño 45–60% altura, mín 9 sp; posición centrada encima) — tests JVM.
+- [x] `Contrast` (WCAG, relación ≥ 4.5:1) — tests JVM.
+- [x] `PinyinOverlayView` (stroke de alto contraste + relleno) en el overlay.
+- [x] Cableado servicio: spans RF-02 → `PinyinConverter` RF-04 → vista; léxico HSK (asset).
+- [x] Verificado en dispositivo (`artifacts/render/render_pinyin2.png`): pinyin
+      dibujado sobre Ajustes en chino, desambiguación 了解→liǎo jiě en runtime.
+- [ ] Pulido de **alineación por carácter** y resolución de **colisiones** entre líneas.
+- [ ] Medición formal del **error ≤ 4 dp (RF-02)** con harness, ahora que el pinyin se dibuja.
+
 ### UI-01 · Activar/desactivar el servicio — `TODO`
 Una de las dos (a decidir en diseño):
 - [ ] Notificación persistente con acción on/off, **o**
