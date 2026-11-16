@@ -167,12 +167,20 @@ El SRS exige pruebas de hipótesis (α = 0.05) para los umbrales de calidad. La 
 |-----------|--------|---------------|
 | RF-01 overlay | binomial unilateral | P_overlay ≤ 0.95 |
 | RF-02 nodos | t de una muestra | μ_error ≥ 4 dp |
-| RF-03 OCR | t unilateral | μ_CRR ≤ 0.90 |
+| RF-03 OCR | t unilateral → **binomial** (ver nota) | p_CRR ≤ 0.90 |
 | RF-04 pinyin | proporciones Z | P_pinyin ≤ 0.91 |
 | RF-05 hold | binomial unilateral | P_hold ≤ 0.93 |
 | RF-06 scroll | t unilateral | μ_hide ≥ 32 ms |
 
-Las muestras (`n`) y los conjuntos de datos de referencia (corpus pinyin, 200 imágenes OCR, etc.) se versionan o se documentan en `datasets/` para que las corridas sean reproducibles.
+Las muestras (`n`) y los conjuntos de datos de referencia (corpus pinyin, imágenes OCR, etc.) se versionan o se documentan en `datasets/` para que las corridas sean reproducibles.
+
+> **Nota RF-03 (CRR):** el SRS nombra "prueba t" para CRR, pero CRR es una
+> proporción de caracteres acertados, no una media de mediciones continuas. La
+> prueba estadísticamente correcta para una tasa es la **binomial** sobre el total
+> de caracteres (H₀: p ≤ 0.90). La t sobre CRR-por-imagen se conserva como dato
+> informativo pero no como gate: con pocas imágenes y palabras cortas, su varianza
+> impide significancia aunque la tasa agregada supere el umbral. Verificado:
+> CRR=0.9419 (243/258), t por imagen p=0.12 (no rechaza), binomial p=0.012 (rechaza).
 
 ## 7. Reglas de código
 

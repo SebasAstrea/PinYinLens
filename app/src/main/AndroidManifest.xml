@@ -23,6 +23,19 @@
             </intent-filter>
         </activity>
 
+        <!-- RF-03: Activity transparente para el permiso de MediaProjection. -->
+        <activity
+            android:name=".ocr.ProjectionPermissionActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" />
+
+        <!-- RF-03: foreground service de captura de pantalla. -->
+        <service
+            android:name=".ocr.MediaProjectionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
         <!-- RF-01/RF-02/RF-06: servicio base de accesibilidad. -->
         <service
             android:name=".service.PinYinLensAccessibilityService"

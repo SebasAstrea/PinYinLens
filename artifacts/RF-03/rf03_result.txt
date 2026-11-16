@@ -1,0 +1,15 @@
+﻿RF-03 OCR local (CRR y latencia)
+Fecha: 2026-11-16T14:02:43.2028435-06:00
+Dispositivo: SM-A226BR
+Motor: ML Kit Text Recognition Chinese (bundled, offline, RNF-03).
+
+imagenes = 25
+caracteres totales = 258
+caracteres correctos = 243
+CRR = 0.9419  (umbral SRS >= 0.92)
+latencia media = 94.2 ms
+latencia P95 = 113.2 ms  (RNF-01 <= 250 ms)
+
+Nota: CRR medido por carÃ¡cter con alineaciÃ³n por posiciÃ³n sobre imÃ¡genes
+sintÃ©ticas (texto impreso, fuente CJK). El modelo va embebido en el APK
+(libmlkit_google_ocr_pipeline.so); sin descarga ni INTERNET en runtime (RNF-03).

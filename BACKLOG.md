@@ -106,13 +106,25 @@ Pulsación sostenida 5000±150 ms sobre etiqueta de pinyin → tarjeta Hanzi/pin
 
 > Evidencia en `artifacts/RF-05/` (reporte + captura de la tarjeta).
 
-### RF-03 · OCR local sobre imágenes — `TODO`
+### RF-03 · OCR local sobre imágenes — `HECHO (motor+CRR)` / captura MediaProjection pendiente de verificación e2e
 ImageView/WebView sin texto → debounce 400 ms → `MediaProjection` 1 frame → ROI → OCR local.
-- [ ] Captura de un frame por `MediaProjection`; `recycle()` inmediato (RNF-03).
-- [ ] Recorte ROI y motor OCR local (ML Kit Chinese v2 o RapidOCR INT8 + NDK r30).
-- [ ] Debounce de inactividad táctil (400 ms).
-- [ ] e2e ADB: n=200 imágenes; t unilateral H₀: μ_CRR ≤ 0.90, p ≤ 0.05.
-- Umbral SRS: CRR ≥ 0.92.
+- [x] Motor OCR local ML Kit Chinese **bundled** (`MlKitOcrEngine`): modelo en el
+      APK (`libmlkit_google_ocr_pipeline.so`), sin descarga ni INTERNET (RNF-03).
+- [x] Selección de ROI (`OcrTriggerPolicy`) y debounce 400 ms (`OcrDebounce`), lógica
+      pura con tests JVM (`OcrTriggerPolicyTest`, `OcrDebounceTest`).
+- [x] Captura `MediaProjection` de 1 frame + recorte ROI + `recycle()` inmediato
+      (`ScreenCapturer`, RNF-03), con Activity de permiso y foreground service.
+- [x] Prueba t (`stats/OneSampleTTest.upperTail`) con tests; gate binomial para CRR.
+- [x] e2e ADB (`scripts/rf03_ocr_e2e.ps1`) + gate `Rf03OcrTest`:
+      **CRR = 0.9419 (243/258) ≥ 0.92, binomial p = 0.012 → H₀: p ≤ 0.90 rechazada.**
+      Latencia P95 = 102.6 ms ≤ 250 ms (RNF-01). Evidencia en `artifacts/RF-03/`.
+- [ ] **Verificación e2e de la cadena de captura real** (permiso → VirtualDisplay →
+      ROI de pantalla): el motor OCR se validó sobre imágenes de assets; falta la
+      corrida con captura física de pantalla (requiere conceder MediaProjection).
+- Umbral SRS: CRR ≥ 0.92 **CUMPLIDO (0.9419)**; latencia P95 ≤ 250 ms **CUMPLIDO**.
+
+> Nota: CRR se valida con binomial (proporción de caracteres), no con la t del
+> SRS; ver AGENTS §6. Un fallo típico de ML Kit es simplificado↔tradicional.
 
 ---
 

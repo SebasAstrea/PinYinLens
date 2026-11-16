@@ -18,6 +18,10 @@ import com.pinyinlens.dictionary.DictionaryCardBuilder
 import com.pinyinlens.gesture.ScrollVisibilityController
 import com.pinyinlens.nodescan.AccessibilityTreeScanner
 import com.pinyinlens.nodescan.HanziSpan
+import com.pinyinlens.ocr.MlKitOcrEngine
+import com.pinyinlens.ocr.OcrBlock
+import com.pinyinlens.ocr.OcrEngine
+import com.pinyinlens.ocr.OcrImage
 import com.pinyinlens.overlay.OverlayController
 import com.pinyinlens.ui.DictionaryCardView
 
@@ -37,6 +41,7 @@ class PinYinLensAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var dictionary: SqliteDictionary? = null
     private var cardView: DictionaryCardView? = null
+    private var ocr: OcrEngine? = null
 
     /** Reagenda la comprobación de reposo tras cada scroll (RF-06). */
     private val quietCheck = object : Runnable {
@@ -62,6 +67,19 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Gancho de prueba (RF-03): recibe un broadcast con la ruta de un asset de
+     * imagen, corre el OCR local y registra el texto reconocido para medir CRR.
+     * Evalúa el motor OCR aislado del capturador (que añadiría ruido propio).
+     * Solo para desarrollo; restringir/eliminar antes de release.
+     */
+    private val ocrTestReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val asset = intent?.getStringExtra("asset") ?: return
+            runOcrOnAsset(asset)
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.i(TAG, "AccessibilityService conectado")
@@ -73,6 +91,12 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         registerReceiver(
             holdTestReceiver,
             IntentFilter(ACTION_HOLD_TEST),
+            Context.RECEIVER_EXPORTED,
+        )
+        ocr = MlKitOcrEngine()
+        registerReceiver(
+            ocrTestReceiver,
+            IntentFilter(ACTION_OCR_TEST),
             Context.RECEIVER_EXPORTED,
         )
     }
@@ -114,6 +138,34 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * RF-03 (gancho de prueba): carga una imagen de assets, corre OCR local,
+     * registra el texto reconocido y la latencia, y recicla el Bitmap (RNF-03).
+     */
+    private fun runOcrOnAsset(asset: String) {
+        val engine = ocr ?: return
+        val bitmap = try {
+            assets.open(asset).use { android.graphics.BitmapFactory.decodeStream(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "RF03 no se pudo abrir asset '$asset'", e); return
+        }
+        if (bitmap == null) { Log.e(TAG, "RF03 bitmap nulo '$asset'"); return }
+        val t0 = SystemClock.elapsedRealtimeNanos()
+        engine.recognize(
+            OcrImage(bitmap, bitmap.width, bitmap.height),
+            onResult = { blocks: List<OcrBlock> ->
+                val ms = (SystemClock.elapsedRealtimeNanos() - t0) / 1_000_000.0
+                val text = blocks.joinToString("") { it.text }.replace("\\s".toRegex(), "")
+                Log.i(TAG, "RF03 ocr asset='$asset' ms=$ms blocks=${blocks.size} text='$text'")
+                bitmap.recycle() // RNF-03: liberar en cuanto termina la inferencia
+            },
+            onError = { e ->
+                Log.e(TAG, "RF03 OCR error '$asset'", e)
+                bitmap.recycle()
+            },
+        )
+    }
+
     private fun onScroll() {
         val now = SystemClock.uptimeMillis()
         val changed = scroll.onScroll(now)
@@ -145,6 +197,9 @@ class PinYinLensAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         handler.removeCallbacks(quietCheck)
         runCatching { unregisterReceiver(holdTestReceiver) }
+        runCatching { unregisterReceiver(ocrTestReceiver) }
+        ocr?.close()
+        ocr = null
         dictionary?.close()
         dictionary = null
         overlay?.hide()
@@ -155,5 +210,6 @@ class PinYinLensAccessibilityService : AccessibilityService() {
     companion object {
         const val TAG = "PinYinLens"
         const val ACTION_HOLD_TEST = "com.pinyinlens.HOLD_TEST"
+        const val ACTION_OCR_TEST = "com.pinyinlens.OCR_TEST"
     }
 }

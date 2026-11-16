@@ -47,6 +47,28 @@ object OneSampleTTest {
         return Result(n, mean, sd, mu0, alpha, t, df, pValue)
     }
 
+    /**
+     * Prueba t de una muestra, unilateral de cola DERECHA: H0: μ <= μ0 vs
+     * H1: μ > μ0. p-valor = P(T >= t). Usada por RF-03 (CRR) y RF-02 (alineación
+     * cuando se mide como "acierto"). Se rechaza H0 si p-valor <= alfa.
+     */
+    fun upperTail(samples: DoubleArray, mu0: Double, alpha: Double = 0.05): Result {
+        require(samples.size >= 2) { "se requieren >= 2 observaciones" }
+        val n = samples.size
+        val mean = samples.average()
+        val variance = samples.sumOf { (it - mean) * (it - mean) } / (n - 1)
+        val sd = sqrt(variance)
+        val df = n - 1
+        val se = sd / sqrt(n.toDouble())
+        val t = if (se == 0.0) {
+            if (mean > mu0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY
+        } else {
+            (mean - mu0) / se
+        }
+        val pValue = 1.0 - studentCdf(t, df)
+        return Result(n, mean, sd, mu0, alpha, t, df, pValue)
+    }
+
     /** CDF de la t de Student: P(T <= t) con df grados de libertad. */
     private fun studentCdf(t: Double, df: Int): Double {
         if (t == Double.POSITIVE_INFINITY) return 1.0

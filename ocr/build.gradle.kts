@@ -24,6 +24,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.mlkit.text.recognition.chinese)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
 }

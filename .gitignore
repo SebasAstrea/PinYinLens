@@ -30,3 +30,11 @@ scripts/.gloss_out.txt
 scripts/.in.txt
 scripts/.out.txt
 scripts/.aptest.txt
+
+# Modelos OCR: NO se versionan. ML Kit los trae en su dependencia Maven
+# (libmlkit_google_ocr_pipeline.so) y Gradle los descarga al compilar.
+*.so
+*.tflite
+*.pb
+*.onnx
+**/mlkit*/

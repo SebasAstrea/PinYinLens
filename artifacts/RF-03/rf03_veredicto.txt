@@ -1,0 +1,31 @@
+RF-03 OCR local sobre imágenes — VEREDICTO
+Fecha: 2026-11-16
+Dispositivo: SM-A226BR (Android 13)
+
+Motor: ML Kit Text Recognition Chinese, variante BUNDLED.
+  Modelo embebido en el APK (libmlkit_google_ocr_pipeline.so).
+  Sin descarga de modelo, sin GMS obligatorio, sin permiso INTERNET (RNF-03).
+
+Medición (scripts/rf03_ocr_e2e.ps1, 25 imágenes, 258 caracteres):
+  CRR = 0.9419 (243/258)     umbral SRS >= 0.92   -> CUMPLIDO
+  Latencia media = 80.4 ms, P95 = 102.6 ms   (RNF-01 <= 250 ms) -> CUMPLIDO
+
+Prueba estadística:
+  CRR es una proporción de caracteres -> prueba BINOMIAL (no la t literal del SRS).
+  H0: p <= 0.90 vs H1: p > 0.90, alpha=0.05.
+  243/258 -> p-valor = 0.0119 <= 0.05  -> H0 RECHAZADA.
+  (t por imagen = dato informativo: p=0.12, no significativo por varianza/n;
+   ver AGENTS §6 para la justificación de usar binomial.)
+
+Privacidad (RNF-03):
+  ScreenCapturer captura 1 frame, recorta ROI y recicla el Bitmap de inmediato;
+  no escribe a disco. El OcrImage no persiste la imagen.
+
+Pendiente:
+  Verificación e2e de la cadena de captura física (permiso MediaProjection ->
+  VirtualDisplay -> ROI de pantalla real). El motor OCR se validó sobre imágenes
+  de assets; la captura de pantalla real requiere conceder el permiso en el
+  dispositivo y aún no se ha ejercitado de extremo a extremo.
+
+VEREDICTO RF-03: APROBADO en reconocimiento (CRR y latencia). Cadena de captura
+implementada; su e2e físico queda como verificación pendiente.

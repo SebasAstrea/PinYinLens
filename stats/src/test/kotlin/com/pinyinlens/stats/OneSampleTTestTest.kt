@@ -38,4 +38,19 @@ class OneSampleTTestTest {
         val r = OneSampleTTest.lowerTail(samples, mu0 = 32.0)
         assertEquals(0.5, r.pValue, 1e-6)
     }
+
+    @Test
+    fun upperTailRejectsWhenMeanAboveThreshold() {
+        // RF-03: CRR por imagen, mayoría en 1.0, frente a H0 mu<=0.90.
+        val samples = DoubleArray(60) { if (it % 12 == 0) 0.8 else 1.0 }
+        val r = OneSampleTTest.upperTail(samples, mu0 = 0.90)
+        assertTrue("media > 0.90 debe rechazar H0", r.rejectsNull)
+    }
+
+    @Test
+    fun upperTailDoesNotRejectAtThreshold() {
+        val samples = doubleArrayOf(0.90, 0.90, 0.90, 0.90, 0.90, 0.90)
+        val r = OneSampleTTest.upperTail(samples, mu0 = 0.90)
+        assertFalse(r.rejectsNull)
+    }
 }
