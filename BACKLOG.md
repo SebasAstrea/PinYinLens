@@ -41,13 +41,23 @@ Capa `TYPE_ACCESSIBILITY_OVERLAY` por encima de apps y sistema, con pass-through
 > app y desvincula el `AccessibilityService`, por lo que el overlay no puede
 > observarse desde dentro. Verificado empíricamente (el proceso muere al instrumentar).
 
-### RF-02 · Extracción de Hanzi y coordenadas — `TODO`
+### RF-02 · Extracción de Hanzi y coordenadas — `HECHO (extracción)` / alineación diferida a RF-04
 Inspección de `AccessibilityNodeInfo`, filtro CJK U+4E00–U+9FFF, `Rect` absolutos.
-- [ ] Recorrido del árbol de nodos y filtrado CJK (unidad, pura JVM).
-- [ ] Cálculo de coordenadas absolutas en pantalla.
-- [ ] Exclusión de `isPassword` / `FLAG_SECURE` (RNF-03).
-- [ ] e2e ADB: n=150 nodos; t de una muestra H₀: μ_error ≥ 4 dp, p ≤ 0.05.
-- Umbral SRS: R_nativo ≥ 0.99, error alineación ≤ 4 dp.
+- [x] Recorrido del árbol de nodos (`AccessibilityTreeScanner`, DFS con límites).
+- [x] Filtrado CJK y política de nodos (`NodePolicy`, reutiliza `pinyin/CjkText`).
+- [x] Cálculo de coordenadas absolutas (`getBoundsInScreen` → `HanziSpan`).
+- [x] Exclusión de `isPassword` (RNF-03) y de ventanas sin root (FLAG_SECURE).
+- [x] Pruebas unitarias JVM (`NodePolicyTest`, `HanziSpanTest`) — verdes.
+- [x] Conectado al `AccessibilityService` (traza `RF02 span` para el harness).
+- [x] e2e ADB (`scripts/rf02_nodescan_e2e.ps1`), 14 pantallas del sistema en chino:
+      **R_nativo = 0.9938 (160/161) ≥ 0.99**. Evidencia en `artifacts/RF-02/rf02_result.txt`.
+- [ ] **Error de alineación ≤ 4 dp (prueba t, H₀: μ ≥ 4 dp):** requiere la proyección
+      del pinyin → se mide en RF-04/render. Dependencia real, documentada.
+- Umbral SRS: R_nativo ≥ 0.99 **CUMPLIDO**; error ≤ 4 dp pendiente de RF-04.
+
+> Nota: R_nativo es una proporción (validación binomial/descriptiva); la prueba t
+> del SRS aplica al error de alineación, no a R_nativo. Verdad medida con
+> `uiautomator dump` independiente del servicio.
 
 ### RF-04 · Segmentación léxica y pinyin — `TODO`
 Segmentación (Jieba / Trie CC-CEDICT) + pinyin con tonos, desambiguación polifónica.

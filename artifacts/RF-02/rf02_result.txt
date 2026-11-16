@@ -1,0 +1,45 @@
+﻿RF-02 ExtracciÃ³n de Hanzi y coordenadas â€” e2e
+Fecha: 2026-11-16T12:34:02.5017054-06:00
+Dispositivo: SM-A226BR
+Idioma: zh-Hans-CN
+
+MetodologÃ­a: VERDAD = uiautomator dump (nodos con CJK, Ã¡rea>0, no password);
+DETECTADO = spans del servicio (log 'RF02 span text=').
+
+Ajustes                verdad= 18 detectados= 35 aciertos= 18
+Info del dispositivo   verdad= 17 detectados= 24 aciertos= 17
+Apps                   verdad= 10 detectados= 25 aciertos= 10
+Pantalla               verdad= 13 detectados= 26 aciertos= 13
+Sonido                 verdad= 12 detectados= 25 aciertos= 12
+Bateria                verdad= 11 detectados= 18 aciertos= 11
+Almacenamiento         verdad= 13 detectados= 26 aciertos= 13
+Fecha y hora           verdad=  9 detectados= 17 aciertos=  9
+Accesibilidad          verdad= 10 detectados= 19 aciertos= 10
+Seguridad              verdad= 11 detectados= 27 aciertos= 11
+Red e Internet         verdad= 12 detectados= 21 aciertos= 12
+Bluetooth              verdad=  3 detectados= 10 aciertos=  2
+Idioma                 verdad=  5 detectados= 13 aciertos=  5
+Privacidad             verdad= 17 detectados= 26 aciertos= 17
+
+n (nodos verdad) = 161
+aciertos = 160
+R_nativo = 0.9938
+Umbral SRS: R_nativo >= 0.99
+
+Nota de alcance: el error de alineaciÃ³n <= 4 dp (prueba t, H0: mu>=4dp) compara el
+rect nativo con la proyecciÃ³n del pinyin, que se dibuja en RF-04/render. Se medirÃ¡
+cuando exista render. AquÃ­ se valida R_nativo y la extracciÃ³n de coordenadas.
+
+== Validación estadística ==
+R_nativo es una PROPORCIÓN (nodos detectados / nodos con Hanzi presentes), no una
+media de error, por lo que su criterio natural es binomial, no la t del SRS.
+Observado: 160/161 = 0.9938 >= 0.99 (umbral SRS). CUMPLIDO.
+
+La prueba t de una muestra del SRS (H0: mu_error >= 4 dp vs H1: mu_error < 4 dp)
+aplica al ERROR DE ALINEACIÓN entre el rect del texto nativo y la proyección del
+pinyin. Esa proyección se dibuja en RF-04/render; el error de alineación se medirá
+y se validará con la t cuando render exista. Las coordenadas extraídas aquí ya se
+verifican: todos los rects reportados son no vacíos y dentro de pantalla.
+
+VEREDICTO RF-02 (parte de extracción): R_nativo = 0.9938 >= 0.99. APROBADO.
+Pendiente de RF-04/render: medición del error de alineación (<= 4 dp) con prueba t.
