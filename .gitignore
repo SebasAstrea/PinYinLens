@@ -18,3 +18,15 @@ artifacts/*
 !artifacts/**/
 artifacts/**/*.log
 !artifacts/**/*.txt
+
+# Datos del pipeline del diccionario (build_dictionary.ps1)
+# Fuente descargable (no versionar, se baja en build):
+datasets/complete.min.json
+datasets/cedict.txt.gz
+# Caché e intermedios de traducción:
+datasets/.cache_en_es.tsv
+scripts/.gloss_in.txt
+scripts/.gloss_out.txt
+scripts/.in.txt
+scripts/.out.txt
+scripts/.aptest.txt

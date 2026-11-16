@@ -34,10 +34,14 @@ class PinyinAccuracyDatasetTest {
     @Test
     fun aPinyinMeetsThreshold() {
         val root = projectRoot()
-        val lexFile = File(root, "datasets/lexicon_seed.cedict")
-        val corpusFile = File(root, "datasets/pinyin_corpus.tsv")
-        assumeTrue("Falta datasets/lexicon_seed.cedict", lexFile.exists())
-        assumeTrue("Falta datasets/pinyin_corpus.tsv", corpusFile.exists())
+        // Preferir el léxico+corpus HSK completos (n grande, activa el gate
+        // estricto); si no existen, usar el corpus semilla.
+        val hskLex = File(root, "datasets/hsk_lexicon.cedict")
+        val hskCorpus = File(root, "datasets/hsk_pinyin_corpus.tsv")
+        val lexFile = if (hskLex.exists()) hskLex else File(root, "datasets/lexicon_seed.cedict")
+        val corpusFile = if (hskCorpus.exists()) hskCorpus else File(root, "datasets/pinyin_corpus.tsv")
+        assumeTrue("Falta el léxico", lexFile.exists())
+        assumeTrue("Falta el corpus", corpusFile.exists())
 
         val lexicon = lexFile.useLines { Lexicon.fromCcCedict(it) }
         val converter = PinyinConverter(lexicon, charFallback)

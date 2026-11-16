@@ -96,3 +96,13 @@ Compilación e instalación básicas:
 ```
 
 La configuración concreta de `local.properties`, `JAVA_HOME` y la metodología de trabajo (backlog, pruebas unitarias por módulo y e2e por ADB) están en [`AGENTS.md`](./AGENTS.md).
+
+## Créditos de datos y licencias
+
+El diccionario se construye con `scripts/build_dictionary.ps1` a partir de fuentes de terceros, que deben acreditarse:
+
+- **CC-CEDICT** — diccionario chino-inglés comunitario (MDBG). Licencia CC BY-SA 4.0.
+- **complete-hsk-vocabulary** (drkameleon) — listas HSK 1–6 con pinyin e inglés.
+- **Apertium** (par `eng-spa`) — traducción automática inglés→español de las glosas, en tiempo de build. Licencia GPL-2.0.
+
+El español de las glosas es traducción automática (mejor-esfuerzo); el inglés y el pinyin provienen de las fuentes HSK/CC-CEDICT. Todo el procesamiento en el dispositivo es offline; estas fuentes solo se usan al construir la base.

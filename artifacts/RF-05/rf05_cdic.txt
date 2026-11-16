@@ -1,0 +1,13 @@
+﻿RF-05 C_dic (completitud de datos bilingÃ¼es, HSK 1-6)
+Fecha: 2026-11-16T13:37:45.9195528-06:00
+Fuente: datasets/hsk_dictionary.tsv (generado por build_dictionary.ps1)
+
+n (palabras HSK 1-6) = 4991
+completas (pinyin + >=1 EN + >=1 ES) = 4991
+C_dic = 1
+Umbral SRS: C_dic >= 0.98
+
+Nota: inglÃ©s y pinyin provienen de la lista HSK (exactos); espaÃ±ol de Apertium
+local (mejor-esfuerzo). C_dic mide COMPLETITUD de datos, no calidad semÃ¡ntica
+del espaÃ±ol. La verificaciÃ³n en dispositivo confirma la carga de 4991 entradas
+en SQLite y consulta < 15 ms (ver rf05_result.txt).

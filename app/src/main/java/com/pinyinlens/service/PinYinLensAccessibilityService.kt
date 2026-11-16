@@ -67,8 +67,8 @@ class PinYinLensAccessibilityService : AccessibilityService() {
         Log.i(TAG, "AccessibilityService conectado")
         overlay = OverlayController(this).also { it.show() }
         dictionary = SqliteDictionary.open(this).also {
-            val n = SqliteDictionary.seedIfEmpty(it)
-            if (n > 0) Log.i(TAG, "RF05 diccionario sembrado: $n entradas")
+            val n = SqliteDictionary.loadHskIfNeeded(this, it)
+            if (n > 0) Log.i(TAG, "RF05 diccionario HSK cargado: $n entradas")
         }
         registerReceiver(
             holdTestReceiver,

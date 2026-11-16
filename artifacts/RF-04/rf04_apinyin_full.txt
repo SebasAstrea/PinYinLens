@@ -1,0 +1,21 @@
+RF-04 A_pinyin — gate estadístico con dataset HSK 1-6 completo
+Fecha: 2026-11-16
+
+Fuente:
+- Léxico: datasets/hsk_lexicon.cedict (4991 entradas, tono numérico desde HSK i.n).
+- Corpus: datasets/hsk_pinyin_corpus.tsv (4991 palabras, pinyin diacrítico HSK i.y,
+  normalizado u:->ü).
+
+Resultado (PinyinAccuracyDatasetTest):
+  A_pinyin = 0.9998 (4990/4991)
+  Z = 22.17
+  p-valor = 0.0
+  H0: P <= 0.91  vs  H1: P > 0.91 (α=0.05)  =>  H0 RECHAZADA.
+
+Umbral SRS: A_pinyin >= 0.94 sobre n=500. Observado 0.9998 sobre n=4991 (≫500).
+
+Único fallo: 欧洲 -> motor 'ōu zhōu' vs esperado 'oū zhōu'. El motor aplica la
+regla estándar (tono sobre 'o' en 'ou'); el dato HSK marcó la 'u', que es no
+estándar. Es decir, el motor es correcto y el dato esperado imperfecto.
+
+VEREDICTO RF-04: APROBADO. A_pinyin = 0.9998 >= 0.94, H0 rechazada (p=0.0).

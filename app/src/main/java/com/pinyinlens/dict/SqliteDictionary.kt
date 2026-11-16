@@ -79,6 +79,10 @@ class SqliteDictionary private constructor(
         fun seedIfEmpty(dict: SqliteDictionary): Int =
             DictionarySeed.loadIfEmpty(dict.db)
 
+        /** Carga el diccionario HSK 1-6 desde assets si la base está casi vacía. */
+        fun loadHskIfNeeded(context: android.content.Context, dict: SqliteDictionary): Int =
+            DictionaryTsvLoader.loadIfNeeded(context, dict.db)
+
         /** Inserta o reemplaza una entrada (usado por la carga de datos). */
         fun insert(
             db: SQLiteDatabase,
