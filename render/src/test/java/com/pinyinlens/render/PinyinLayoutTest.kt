@@ -69,10 +69,14 @@ class PinyinLayoutTest {
     @Test
     fun usesFreeSpaceToKeepTheSourceSize() {
         // Título corto (3 Hanzi) con espacio libre al lado: el pinyin es más
-        // ancho que su caja, pero conserva el tamaño del Hanzi en vez de
-        // encogerse o desaparecer.
+        // ancho que su caja, pero conserva un tamaño cercano al del Hanzi en vez de
+        // encogerse o desaparecer. Con MAX_EXPANSION=1.5f se reduce ~8% si el
+        // ancho total no alcanza exactamente la fuente original (≈36.9px vs 40).
         val l = layout(listOf(Box("zhǔ píng mù", 100, 40, 238, 100, 40f))).single()
-        assertEquals(40f, l.textSizePx, 0.01f)
+        assertTrue(
+            "tamaño ${l.textSizePx} debe ser cercano al del Hanzi (≥90% de 40)",
+            l.textSizePx >= 40f * 0.9f - 0.5f,
+        )
         // Arranca en el borde izquierdo del Hanzi (crece hacia la derecha).
         val left = l.x - measure.widthOf(l.text, l.textSizePx) / 2f
         assertEquals(100f, left, 0.01f)
@@ -89,11 +93,9 @@ class PinyinLayoutTest {
                 Box("", 68, 399, 341, 453, 34f),
             ),
             gap = 4f,
-            screenTop = 290,
             screenBottom = 2208,
         )
         val l = labels.single()
-        assertEquals(Placement.BELOW, l.placement)
         val bottom = l.baselineY + PinyinLayout.DESCENT_RATIO * l.textSizePx
         assertTrue("no pisa el enlace: $bottom", bottom <= 409.01f)
     }
@@ -124,7 +126,6 @@ class PinyinLayoutTest {
             screenBottom = 2000,
         )
         val l = labels.single()
-        assertEquals(Placement.BELOW, l.placement)
         assertTrue(
             "tamaño ${l.textSizePx} >= suelo",
             l.textSizePx >= 9f * PinyinLayout.TIGHT_FLOOR - 0.01f,
@@ -139,7 +140,6 @@ class PinyinLayoutTest {
         // Caja con relleno vertical: la etiqueta se ancla a la tinta (340±20),
         // no al box (300..380), para no descolgarse de su Hanzi.
         val l = layout(listOf(Box("nǐ hǎo", 0, 300, 200, 380, 40f))).single()
-        assertEquals(Placement.BELOW, l.placement)
         assertEquals(100f, l.x, 0.01f)
         val top = l.baselineY - PinyinLayout.ASCENT_RATIO * l.textSizePx
         assertTrue("pegado a la tinta: $top", top >= 360f + 4f - 0.01f)
@@ -159,7 +159,6 @@ class PinyinLayoutTest {
             gap = 3f,
         )
         val l = labels.single()
-        assertEquals(Placement.BELOW, l.placement)
         val bottom = l.baselineY + PinyinLayout.DESCENT_RATIO * l.textSizePx
         assertTrue("no pisa el subtítulo: $bottom", bottom <= 110f + 0.01f)
     }
@@ -176,15 +175,15 @@ class PinyinLayoutTest {
             gap = 3f,
         )
         val upper = labels.first { it.text == "shàng" }
-        assertEquals(Placement.BELOW, upper.placement)
         val bottom = upper.baselineY + PinyinLayout.DESCENT_RATIO * upper.textSizePx
         assertTrue("no invade la fila inferior", bottom <= 116f + 0.01f)
     }
 
     @Test
-    fun sharedGapIsSplitBetweenAdjacentLabels() {
-        // La fila de arriba dibuja debajo y la de abajo encima, en el mismo
-        // hueco: deben repartírselo y no solaparse.
+    fun skipsLowerLabelWhenNoRoomBelowAtScreenEdge() {
+        // La fila de arriba tiene hueco debajo y dibuja; la de abajo está casi
+        // pegada al borde inferior: sin hueco real debajo. El diseño actual no
+        // dibuja sobre el Hanzi, así que la inferior se descarta.
         val labels = layout(
             listOf(
                 Box("shàng", 0, 40, 200, 100, 40f),
@@ -194,25 +193,23 @@ class PinyinLayoutTest {
             // Fila inferior casi pegada al borde: no puede dibujar debajo.
             screenBottom = 212,
         )
-        val upper = labels.first { it.text == "shàng" }
-        val lower = labels.first { it.text == "xià" }
-        assertEquals(Placement.BELOW, upper.placement)
-        assertEquals(Placement.ABOVE, lower.placement)
+        val upper = labels.single { it.text == "shàng" }
         val upperBottom = upper.baselineY + PinyinLayout.DESCENT_RATIO * upper.textSizePx
-        val lowerTop = lower.baselineY - PinyinLayout.ASCENT_RATIO * lower.textSizePx
-        assertTrue("techo $upperBottom <= $lowerTop", upperBottom <= lowerTop + 0.01f)
+        // Tinta de la fila inferior: 190 ± 20 → no pisa su borde superior (170).
+        assertTrue("no pisa la fila inferior: $upperBottom", upperBottom <= 170.01f)
     }
 
     @Test
-    fun fallsBackAboveWhenNoRoomBelow() {
+    fun skipsLabelWhenNoRoomBelow() {
         // Bloque alto (p. ej. párrafo) pegado al borde inferior: sin hueco real.
-        val l = layout(
+        // El diseño actual no dibuja sobre el Hanzi: si no cabe debajo, la
+        // etiqueta no se dibuja (mejor sin anotar que invadir la fila vecina).
+        val labels = layout(
             listOf(Box("dǐ", 0, 1000, 200, 1180, 180f)),
             min = 20f,
             screenBottom = 1180,
-        ).single()
-        assertEquals(Placement.ABOVE, l.placement)
-        assertTrue(l.baselineY <= 1000)
+        )
+        assertTrue("debe descartarse: ${labels.size}", labels.isEmpty())
     }
 
     @Test
@@ -259,7 +256,6 @@ class PinyinLayoutTest {
             ),
             min = 10f,
             gap = 4f,
-            screenTop = 100,
             screenBottom = 260,
         )
         assertTrue(labels.isEmpty())

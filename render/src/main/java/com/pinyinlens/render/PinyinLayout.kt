@@ -9,6 +9,8 @@ data class PinyinLabel(
     val x: Float,          // centro horizontal del texto
     val baselineY: Float,  // línea base del texto
     val textSizePx: Float,
+    /** Palabra Hanzi origen (para la tarjeta de diccionario del hold, RF-05). */
+    val word: String = "",
 )
 
 /**
@@ -73,7 +75,7 @@ object PinyinLayout {
      * ~2× su caja para conservar el tamaño del Hanzi. Más allá de ese tope es
      * preferible reducir el pinyin antes que invadir el control vecino.
      */
-    const val MAX_EXPANSION = 2f
+    const val MAX_EXPANSION = 1.5f
 
     /**
      * Relación alto de caja / tamaño de fuente a partir de la cual se asume que
@@ -107,6 +109,8 @@ object PinyinLayout {
         val right: Int,
         val bottom: Int,
         val hanziTextPx: Float = 0f,
+        /** Palabra Hanzi origen (para la tarjeta de diccionario del hold, RF-05). */
+        val word: String = "",
     )
 
     /**
@@ -209,6 +213,7 @@ object PinyinLayout {
             x = xFor(fitted),
             baselineY = b.inkBottom() + gapPx + ASCENT_RATIO * fitted,
             textSizePx = fitted,
+            word = b.word,
         )
     }
 
