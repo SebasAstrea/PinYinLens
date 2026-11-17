@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import com.pinyinlens.ocr.OcrTriggerPolicy
+import com.pinyinlens.pinyin.CjkText
 
 /**
  * Recorre el árbol de nodos de accesibilidad y extrae los fragmentos con Hanzi y
@@ -70,6 +72,69 @@ class AccessibilityTreeScanner(
             }
         }
         return result
+    }
+
+    /**
+     * Detecta contenedores gráficos candidatos a OCR (RF-03): nodos de clase
+     * imagen/WebView/Surface visibles, con área > 0 y SIN texto propio ni
+     * descendientes con Hanzi (los que tienen texto nativo los cubre RF-02).
+     *
+     * La política de candidatura es [OcrTriggerPolicy] (módulo `ocr`, pura y
+     * testeada); aquí se resuelve sobre el árbol la parte que exige inspección
+     * de nodos ("sin descendientes con texto").
+     */
+    fun scanOcrCandidates(root: AccessibilityNodeInfo?): List<Rect> {
+        if (root == null) return emptyList()
+        val result = ArrayList<Rect>()
+        val stack = ArrayDeque<Pair<AccessibilityNodeInfo, Int>>()
+        stack.addLast(root to 0)
+        var visited = 0
+        while (stack.isNotEmpty() && visited < maxNodes) {
+            val (node, depth) = stack.removeLast()
+            visited++
+            val className = node.className
+            val bounds = Rect()
+            node.getBoundsInScreen(bounds)
+            if (
+                OcrTriggerPolicy.isOcrCandidate(
+                    className = className,
+                    hasOwnText = CjkText.containsHanzi(node.text ?: ""),
+                    hasTextDescendant = subtreeHasHanzi(node),
+                    isVisible = node.isVisibleToUser,
+                    hasPositiveArea = bounds.width() > 0 && bounds.height() > 0,
+                )
+            ) {
+                result.add(Rect(bounds))
+            }
+            if (depth < maxDepth) {
+                for (i in 0 until node.childCount) {
+                    val child = node.getChild(i) ?: continue
+                    stack.addLast(child to depth + 1)
+                }
+            }
+        }
+        return result
+    }
+
+    /** True si el nodo o algún descendiente (acotado) tiene texto con Hanzi. */
+    private fun subtreeHasHanzi(node: AccessibilityNodeInfo): Boolean {
+        if (CjkText.containsHanzi(node.text ?: "")) return true
+        val stack = ArrayDeque<AccessibilityNodeInfo>()
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            stack.addLast(child)
+        }
+        var visited = 0
+        while (stack.isNotEmpty() && visited < SUBTREE_TEXT_LIMIT) {
+            val n = stack.removeLast()
+            visited++
+            if (CjkText.containsHanzi(n.text ?: "")) return true
+            for (i in 0 until n.childCount) {
+                val c = n.getChild(i) ?: continue
+                stack.addLast(c)
+            }
+        }
+        return false
     }
 
     /** Convierte un nodo en HanziSpan si pasa la política; si no, null. */
@@ -139,6 +204,9 @@ class AccessibilityTreeScanner(
         /** Dato extra de API 33 que expone el tamaño/color real del texto. */
         private const val EXTRA_DATA_RENDERING_INFO =
             AccessibilityNodeInfo.EXTRA_DATA_RENDERING_INFO_KEY
+
+        /** Tope de nodos del subárbol al comprobar "sin descendientes con texto". */
+        private const val SUBTREE_TEXT_LIMIT = 200
 
         /** FLAG_SECURE de LayoutParams, para referencia en pruebas/documentación. */
         const val FLAG_SECURE = WindowManager.LayoutParams.FLAG_SECURE

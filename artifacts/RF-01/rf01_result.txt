@@ -12,3 +12,10 @@ p-valor (binomial, X>=100): 0.005920529220334
 rechaza H0: True
 VEREDICTO RF-01: APROBADO (P_overlay=1.0 >= 0.98 y H0 rechazada)
 
+== e2e 2026-11-17: pass-through y navegación ==
+- OverlayWindowSpec: capa de dibujo con FLAG_NOT_TOUCHABLE; ventanas táctiles
+  minúsculas solo sobre cada etiqueta (PinyinTouchTargets).
+- Verificado en dispositivo: tap en 连接 (fuera de la etiqueta) navega a
+  Conexiones; scroll funciona y el overlay se oculta/regenera (RF-06).
+- Evidencia: rf01_passthrough_navigation.png, rf01_scroll_regenerated.png.
+

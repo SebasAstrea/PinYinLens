@@ -66,6 +66,17 @@ class OcrDebounce(val windowMs: Long = DEFAULT_WINDOW_MS) {
         return true
     }
 
+    /**
+     * Momento (ms) a partir del cual la quietud es completa, o null si no ha
+     * habido actividad. Permite al llamante re-agendar la comprobación exacta
+     * sin sondeo continuo (RNF-02): si aún no se cumplió la ventana, se
+     * re-postea a este instante en lugar de volver a preguntar periódicamente.
+     */
+    fun quietCompletesAt(nowMs: Long): Long? {
+        if (lastTouchAt == Long.MIN_VALUE) return null
+        return lastTouchAt + windowMs
+    }
+
     fun reset() {
         lastTouchAt = Long.MIN_VALUE
         firedFor = Long.MIN_VALUE

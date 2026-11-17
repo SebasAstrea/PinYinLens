@@ -23,6 +23,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":gesture"))
+    implementation(project(":overlay"))
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

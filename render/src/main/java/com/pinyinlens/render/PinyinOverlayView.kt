@@ -6,11 +6,8 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
-import android.view.MotionEvent
 import android.view.View
-import com.pinyinlens.gesture.HoldDetector
 
 private const val TAG = "PinyinOverlayView"
 
@@ -41,13 +38,12 @@ data class PinyinItem(
  * opuesto en luminancia al relleno, garantizando contraste alto sobre cualquier
  * fondo de la app inferior sin conocer su color.
  *
- * **Gesto de hold (RF-05):** la ventana del overlay es interactiva, así que esta
- * vista decide toque a toque: un `ACTION_DOWN` que cae sobre el rectángulo de una
- * etiqueta se consume y se entrega a un [HoldDetector]; al completar 5 s con el
- * dedo quieto dispara [onHold] con la palabra origen (y el `UP` se consume, de
- * modo que no se propaga un clic accidental a la app inferior). Cualquier otro
- * toque se devuelve sin consumir y el dispatcher lo re-encamina a la ventana
- * inferior (pass-through, RF-01).
+ * **Toques (RF-01/RF-05):** esta vista NO recibe eventos táctiles; su ventana es
+ * FLAG_NOT_TOUCHABLE para que la navegación de la app inferior nunca se bloquee.
+ * Tras cada dibujo publica las zonas de las etiquetas ([PinyinHitbox]) mediante
+ * [onHitboxes]; el servicio crea con ellas ventanas interactivas minúsculas que
+ * capturan el hold de 5 s. Así solo el rectángulo del pinyin intercepta, no la
+ * pantalla completa.
  */
 class PinyinOverlayView(context: Context) : View(context) {
 
@@ -76,24 +72,36 @@ class PinyinOverlayView(context: Context) : View(context) {
     }
 
     // ---------------------------------------------------------------------
-    // Hold de 5 s sobre la etiqueta (RF-05)
+    // Zonas táctiles de las etiquetas (RF-05)
     // ---------------------------------------------------------------------
 
-    /** Callback al completar el hold: recibe la palabra Hanzi de la etiqueta. */
-    var onHold: ((String) -> Unit)? = null
+    /**
+     * Se invoca (en el hilo principal) cada vez que cambian las etiquetas
+     * dibujadas, con sus zonas táctiles en coordenadas de pantalla. Lista vacía
+     * cuando no hay etiquetas. El servicio las usa para crear/retirar las
+     * ventanas interactivas de hold.
+     */
+    var onHitboxes: ((List<PinyinHitbox>) -> Unit)? = null
 
-    private val holdDetector = HoldDetector()
     private val handler = Handler(Looper.getMainLooper())
-    private var tracking = false
-    private var holdWord: String? = null
+    private var pendingHitboxes: List<PinyinHitbox>? = null
 
-    /** Etiqueta y origen de la última pasada de [onDraw], para el hit-testing. */
-    private var drawnLabels: List<PinyinLabel> = emptyList()
-    private var originX = 0
-    private var originY = 0
+    private val publishHitboxes = Runnable {
+        val boxes = pendingHitboxes ?: return@Runnable
+        pendingHitboxes = null
+        onHitboxes?.invoke(boxes)
+    }
 
-    private val holdCheck = Runnable {
-        if (holdDetector.onTimeCheck(SystemClock.uptimeMillis())) fireHold()
+    /**
+     * Publica las zonas táctiles. Se hace siempre tras cada dibujo (no solo
+     * cuando cambian): el servicio puede haberlas retirado durante un scroll o
+     * al abrir la tarjeta, y debe poder reconstruirlas aunque el layout sea el
+     * mismo. El control de destinos deduplica, así que republicar es barato.
+     */
+    private fun requestHitboxes(boxes: List<PinyinHitbox>) {
+        pendingHitboxes = boxes
+        handler.removeCallbacks(publishHitboxes)
+        handler.post(publishHitboxes)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -104,123 +112,22 @@ class PinyinOverlayView(context: Context) : View(context) {
     /** Actualiza las etiquetas a dibujar y repinta. */
     fun setItems(newItems: List<PinyinItem>) {
         Log.v(TAG, "setItems: ${newItems.size} items")
-        cancelTracking() // las etiquetas han cambiado: el hold en curso es inválido
         items = newItems
         invalidate()
     }
 
     fun clearItems() {
-        Log.v(TAG, "clearItems (was tracking=$tracking)")
-        cancelTracking()
-        cancelTracking()
+        Log.v(TAG, "clearItems")
         items = emptyList()
+        requestHitboxes(emptyList())
         invalidate()
     }
 
-    /** Cancela un hold en curso sin disparar (scroll, cambio de contenido, etc.). */
-    private fun cancelTracking() {
-        tracking = false
-        holdWord = null
-        handler.removeCallbacks(holdCheck)
-        holdDetector.reset()
-    }
-
-    /** Dispara el hold (dedo aún abajo) y limpia el seguimiento. */
-    private fun fireHold() {
-        val word = holdWord
-        tracking = false
-        holdWord = null
-        handler.removeCallbacks(holdCheck)
-        holdDetector.reset()
-        if (word != null) onHold?.invoke(word)
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                val label = hitLabel(event.x, event.y) ?: run {
-                    return false // fuera de etiqueta → pass-through total
-                }
-                Log.v(TAG, "  DOWN consumed on '${label.text}' word='${label.word}'")
-                tracking = true
-                holdWord = label.word
-                holdDetector.onDown(SystemClock.uptimeMillis(), event.x.toInt(), event.y.toInt())
-                handler.removeCallbacks(holdCheck)
-                handler.postDelayed(holdCheck, holdDetector.holdMs)
-                Log.v(TAG, "  DOWN consumed on label='${label.text}' word='$holdWord'")
-                return true
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                val cancelled = holdDetector.onMove(event.x.toInt(), event.y.toInt()) == HoldDetector.State.CANCELLED
-                if (cancelled) {
-                    tracking = false
-                    holdWord = null
-                    handler.removeCallbacks(holdCheck)
-                    Log.v(TAG, "  MOVE cancel -> pass-through")
-                } else {
-                    Log.v(TAG, "  MOVE consumed (hold)")
-                }
-                return !cancelled // si canceló → passthrough; mientras hold, consumimos
-            }
-
-            MotionEvent.ACTION_UP -> {
-                if (!tracking) {
-                    val label = hitLabel(event.x, event.y) ?: run {
-                        return false // no estábamos rastreando → pass-through
-                    }
-                    Log.v(TAG, "  UP consumed on '${label.text}' (not tracking but inside label hitbox)")
-                    return true
-                }
-                handler.removeCallbacks(holdCheck)
-                val label = hitLabel(event.x, event.y) ?: run {
-                    // El dedo se movió a un área vacía: es scroll/arrastre. Consumir el UP para que la ventana inferior reciba su gesto completo de liberación.
-                    tracking = false
-                    holdWord = null
-                    holdDetector.reset()
-                    Log.v(TAG, "  UP pass-through (moved to empty area)")
-                    return false
-                }
-                val completed = holdDetector.onUp(SystemClock.uptimeMillis())
-                val word = holdWord
-                tracking = false
-                holdWord = null
-                holdDetector.reset()
-                if (completed && word != null) onHold?.invoke(word)
-                Log.v(TAG, "  UP consumed on '${label.text}' completed=$completed")
-                true // dentro de una etiqueta → consumimos UP (el usuario soltó sobre el pinyin)
-            }
-
-            MotionEvent.ACTION_CANCEL -> {
-                cancelTracking()
-                Log.v(TAG, "  CANCEL -> consumed")
-                return true
-            }
-        }
-        return false
-    }
-
-    /**
-     * Etiqueta cuyo rectángulo (con holgura) contiene el punto (en coords de la
-     * vista), o null. El rectángulo se deriva de la misma métrica que [onDraw].
-     */
-    private fun hitLabel(x: Float, y: Float): PinyinLabel? {
-        val pad = 8f * resources.displayMetrics.density
-        Log.v(TAG, "hitLabel x=$x y=$y originX=$originX originY=$originY drawnLabels=${drawnLabels.size}")
-        for (label in drawnLabels.asReversed()) {
-            val halfWidth = measurer.widthOf(label.text, label.textSizePx) / 2f
-            val left = label.x - originX - halfWidth
-            val right = label.x - originX + halfWidth
-            val top = label.baselineY - originY - PinyinLayout.ASCENT_RATIO * label.textSizePx
-            val bottom = label.baselineY - originY + PinyinLayout.DESCENT_RATIO * label.textSizePx
-            Log.v(TAG, "  check '${label.text}' x=$x y=$y left=$left right=$right top=$top bottom=$bottom halfW=$halfWidth textSize=${label.textSizePx} baselineY=${label.baselineY}")
-            if (x >= left - pad && x <= right + pad && y >= top - pad && y <= bottom + pad) {
-                Log.v(TAG, "  HIT '${label.text}'")
-                return label
-            }
-        }
-        Log.v(TAG, "  no hit found in ${drawnLabels.size} labels")
-        return null
+    /** Retira el callback de zonas táctiles (al desvincular el servicio). */
+    fun release() {
+        handler.removeCallbacks(publishHitboxes)
+        pendingHitboxes = null
+        onHitboxes = null
     }
 
     // ---------------------------------------------------------------------
@@ -234,8 +141,8 @@ class PinyinOverlayView(context: Context) : View(context) {
         // accesibilidad están en coordenadas de PANTALLA, así que se compensa el
         // origen de la vista para que el pinyin caiga exactamente bajo su Hanzi.
         getLocationOnScreen(viewLocation)
-        originX = viewLocation[0]
-        originY = viewLocation[1]
+        val originX = viewLocation[0]
+        val originY = viewLocation[1]
         val labels = PinyinLayout.layoutAll(
             items.map {
                 PinyinLayout.Box(
@@ -256,9 +163,7 @@ class PinyinOverlayView(context: Context) : View(context) {
             screenLeftPx = originX,
             screenRightPx = originX + width,
         )
-        // Se cachea para el hit-testing del hold (mismas etiquetas que las dibujadas).
         Log.v(TAG, "onDraw: layoutAll result=${labels.size} of ${items.size}")
-        drawnLabels = labels
         for (label in labels) {
             if (label.text.isBlank()) continue
             fill.textSize = label.textSizePx
@@ -269,5 +174,16 @@ class PinyinOverlayView(context: Context) : View(context) {
             canvas.drawText(label.text, x, y, stroke)
             canvas.drawText(label.text, x, y, fill)
         }
+        // Zonas táctiles para el hold (mismas etiquetas que las dibujadas).
+        val dm = resources.displayMetrics
+        requestHitboxes(
+            PinyinHitboxes.compute(
+                labels = labels,
+                measure = measurer,
+                density = dm.density,
+                screenWidth = dm.widthPixels,
+                screenHeight = dm.heightPixels,
+            ),
+        )
     }
 }

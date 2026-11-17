@@ -3,6 +3,11 @@
     <string name="app_name">PinYinLens</string>
     <string name="accessibility_service_label">PinYinLens — asistencia de lectura</string>
     <string name="accessibility_service_description">Superpone pinyin sobre texto chino en pantalla. Todo el procesamiento es local y sin conexión.</string>
-    <string name="main_status_idle">Servicio inactivo</string>
+    <string name="main_status_on">Servicio activo: el pinyin se dibuja sobre el texto chino de cualquier app.</string>
+    <string name="main_status_off">Servicio inactivo: actívalo en los ajustes de accesibilidad.</string>
     <string name="main_open_accessibility">Abrir ajustes de accesibilidad</string>
+    <string name="main_enable_ocr">Activar lectura de imágenes (OCR)</string>
+    <string name="main_disable_ocr">Desactivar lectura de imágenes</string>
+    <string name="main_ocr_on">OCR de imágenes: activo (captura local, sin red).</string>
+    <string name="main_ocr_off">OCR de imágenes: inactivo.</string>
 </resources>

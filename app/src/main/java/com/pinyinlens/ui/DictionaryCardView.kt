@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.pinyinlens.dictionary.DictionaryCard
@@ -15,13 +16,25 @@ import com.pinyinlens.dictionary.DictionaryCard
  * Vista autónoma que se añade al overlay. El pulido visual (contraste WCAG,
  * escalado) pertenece al endurecimiento RNF-04; aquí prioriza ser funcional y
  * legible.
+ *
+ * Es MODAL (RF-05): consume los toques que recibe para que no se filtren a la
+ * app inferior, y se cierra con un toque.
  */
 class DictionaryCardView(context: Context) : LinearLayout(context) {
+
+    /** Se invoca al cerrarse la tarjeta (toque), para que el servicio libere su referencia. */
+    var onDismiss: (() -> Unit)? = null
 
     init {
         orientation = VERTICAL
         setBackgroundColor(Color.parseColor("#F2000000"))
         setPadding(40, 32, 40, 32)
+        // Consumir toques: la tarjeta no deja pasar el dedo a la app inferior.
+        isClickable = true
+        setOnClickListener {
+            onDismiss?.invoke()
+            dismiss(this)
+        }
     }
 
     fun bind(card: DictionaryCard) {
@@ -48,7 +61,7 @@ class DictionaryCardView(context: Context) : LinearLayout(context) {
     companion object {
         /** Oculta la vista si está adjunta a un padre. */
         fun dismiss(view: View?) {
-            (view?.parent as? android.view.ViewGroup)?.removeView(view)
+            (view?.parent as? ViewGroup)?.removeView(view)
         }
     }
 }

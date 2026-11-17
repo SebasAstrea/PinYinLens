@@ -36,3 +36,20 @@ Contiene: Hanzi simpl/trad, pinyin, desglose por carácter, traducción ES y EN.
 VEREDICTO RF-05: T_hold=1.0 (>=0.97), 0 falsos positivos, consulta<15ms, tarjeta
 bilingüe completa. APROBADO en mecanismo. Completitud de datos pendiente de
 CC-CEDICT real; enganche táctil al pinyin pendiente de render.
+
+== e2e 2026-11-17: enganche del hold al pinyin dibujado (RF-01/RF-05) ==
+- La capa de dibujo es FLAG_NOT_TOUCHABLE (pass-through). La interacción son
+  ventanas minúsculas por etiqueta (PinyinTouchTargets), no una ventana
+  full-screen. Navegación verificada en Settings: tap fuera de etiquetas abre
+  Conexiones; scroll en el borde derecho desplaza y RF-06 regenera (0.28 s).
+- Hold de 5.2 s sobre la etiqueta 设置 (target 404,533-676,643):
+  hold fired word='设置'; lookup 3.76-6.06 ms, found=true; card shown.
+  Tarjeta: 设置 (設置) / shè zhì / 设 置 / ES: para poner arriba; para instalar /
+  EN: to set up; to install. Evidencia: rf05_hold_card_live.png, rf05_hold_live.log.
+- Tap rápido sobre la misma etiqueta: 0 hold, 0 tarjeta (sin falsos positivos).
+  Evidencia: rf05_hold_no_false_positive.png.
+- Bug corregido durante la verificación: los re-escaneos retiraban/recreaban las
+  ventanas táctiles durante el gesto y cancelaban el hold. Ahora se ignoran los
+  eventos del propio paquete y las actualizaciones se difieren hasta ACTION_UP.
+- Limitación de datos (preexistente): la etiqueta debe existir en el diccionario
+  cargado. 连接/屏幕 no están en el TSV HSK incluido, así que no muestran tarjeta.

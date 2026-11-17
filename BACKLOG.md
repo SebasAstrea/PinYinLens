@@ -31,6 +31,9 @@ Capa `TYPE_ACCESSIBILITY_OVERLAY` por encima de apps y sistema, con pass-through
 - [x] `AccessibilityService` base + configuración XML.
 - [x] Overlay transparente persistente vía `WindowManager` (`OverlayController`).
 - [x] Pass-through de eventos táctiles subyacentes (`OverlayWindowSpec`, `FLAG_NOT_TOUCHABLE`).
+- [x] Interacción separada del dibujo: la capa de dibujo nunca es táctil; solo
+      ventanas minúsculas por etiqueta de pinyin (`PinyinTouchTargets`) reciben el
+      hold. Navegación y scroll verificados en dispositivo (2026-11-17).
 - [x] Pruebas unitarias JVM de la spec de ventana (`OverlayWindowSpecTest`) — verdes.
 - [x] Prueba binomial unilateral (`stats/BinomialTest`) con tests unitarios — verdes.
 - [x] e2e ADB (`scripts/rf01_overlay_e2e.ps1`): **P_overlay = 1.0 (100/100)**, p-valor = 0.0059 → **H₀: p ≤ 0.95 rechazada**. Evidencia en `artifacts/RF-01/rf01_result.txt`.
@@ -86,7 +89,7 @@ Ocultar overlay ≤ 32 ms en `TYPE_VIEW_SCROLLED`/arrastre y regenerar al detene
       Evidencia en `artifacts/RF-06/rf06_result.txt`.
 - Umbral SRS: μ_hide ≤ 32 ms. **CUMPLIDO (0.0104 ms).**
 
-### RF-05 · Diccionario bilingüe + hold 5 s — `HECHO (mecanismo)` / datos y enganche pendientes
+### RF-05 · Diccionario bilingüe + hold 5 s — `HECHO (mecanismo + enganche)` / datos pendientes
 Pulsación sostenida 5000±150 ms sobre etiqueta de pinyin → tarjeta Hanzi/pinyin/desglose/ES/EN.
 - [x] Esquema SQLite CC-CEDICT + glosas ES/EN (`SqliteDictionary`), indexado y
       desacoplado del binario (RNF-05). Semilla `DictionarySeed`.
@@ -100,11 +103,19 @@ Pulsación sostenida 5000±150 ms sobre etiqueta de pinyin → tarjeta Hanzi/pin
 - [x] **C_dic = 1.0 (4991/4991) ≥ 0.98 (HSK 1–6):** diccionario cargado desde
       `hsk_dictionary.tsv` (asset) a SQLite; verificado en dispositivo (4991
       entradas, consulta < 4 ms). Harness `scripts/rf05_cdic_e2e.ps1`.
-- [ ] **Enganche del hold a las zonas de pinyin dibujadas:** depende de RF-04/render.
-      El camino hold→tarjeta se verificó vía broadcast de prueba.
+- [x] **Enganche del hold a las zonas de pinyin dibujadas:** la vista publica
+      `PinyinHitbox` por etiqueta y el servicio crea una ventana táctil minúscula
+      (`PinyinTouchTargets`) encima de cada una; el resto de la pantalla queda
+      pass-through. Verificado en dispositivo: hold 5.2 s sobre 设置 abre la
+      tarjeta (lookup 3.76 ms); tap rápido no abre nada. Evidencia:
+      `artifacts/RF-05/rf05_hold_card_live.png`, `rf05_hold_no_false_positive.png`.
 - Umbral SRS: T_hold ≥ 0.97 **CUMPLIDO**, 0% FP **CUMPLIDO**, C_dic = 1.0 **CUMPLIDO**.
 
 > Evidencia en `artifacts/RF-05/` (reporte + captura de la tarjeta).
+> Cobertura de datos: el TSV HSK incluido no contiene términos de UI como
+> 连接/屏幕; esas etiquetas no muestran tarjeta hasta cargar un CC-CEDICT
+> completo (RNF-05, datos desacoplados). El mecanismo `lookupContained` ya
+> resuelve frases cuando el término existe.
 
 ### RF-03 · OCR local sobre imágenes — `HECHO (motor+CRR)` / captura MediaProjection pendiente de verificación e2e
 ImageView/WebView sin texto → debounce 400 ms → `MediaProjection` 1 frame → ROI → OCR local.

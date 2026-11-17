@@ -21,4 +21,11 @@ interface DictionarySource {
 
     /** Entrada de un carácter individual, o null. */
     fun lookupChar(c: Char): DictionaryEntry?
+
+    /**
+     * Entrada MÁS LARGA contenida en [text], o null. Permite traducir etiquetas
+     * que son frases o cadenas con varios términos (p. ej. "锁定屏幕" → 锁定 o
+     * 屏幕). La implementación por defecto no hace búsqueda contenida.
+     */
+    fun lookupContained(text: String): DictionaryEntry? = null
 }

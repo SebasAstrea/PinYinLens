@@ -57,4 +57,35 @@ class DictionaryCardBuilderTest {
         val card = DictionaryCard("x", "x", "x", emptyList(), emptyList(), emptyList())
         assertFalse(card.hasData)
     }
+
+    @Test
+    fun fallsBackToLongestEntryContainedInPhrase() {
+        // Las etiquetas suelen ser nodos completos ("锁定屏幕"): no hay entrada
+        // exacta, pero sí 屏幕. La tarjeta debe mostrar esa traducción.
+        val phraseSource = object : DictionarySource {
+            private val screen = DictionaryEntry(
+                "屏幕", "屏幕", "píngmù", listOf("screen"), listOf("pantalla"),
+            )
+            override fun lookup(word: String) = if (word == "屏幕") screen else null
+            override fun lookupChar(c: Char) =
+                if (c == '屏') DictionaryEntry("屏", "屏", "píng", listOf("screen"), listOf("pantalla"))
+                else if (c == '幕') DictionaryEntry("幕", "幕", "mù", listOf("curtain"), listOf("cortina"))
+                else null
+            override fun lookupContained(text: String) =
+                if (text.contains("屏幕")) screen else null
+        }
+
+        val card = DictionaryCardBuilder.build("锁定屏幕", phraseSource)!!
+        assertEquals("屏幕", card.simplified)
+        assertEquals(listOf("pantalla"), card.spanish)
+        assertEquals(listOf("screen"), card.english)
+        assertEquals(2, card.breakdown.size)
+        assertEquals("屏", card.breakdown[0].char)
+        assertEquals("pantalla", card.breakdown[0].gloss)
+    }
+
+    @Test
+    fun containedLookupIsNotUsedWhenExactEntryExists() {
+        assertEquals("中国", DictionaryCardBuilder.build("中国", fake)!!.simplified)
+    }
 }

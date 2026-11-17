@@ -28,6 +28,37 @@ class SqliteDictionary private constructor(
 
     override fun lookupChar(c: Char): DictionaryEntry? = queryOne(c.toString())
 
+    /**
+     * RF-05: entrada más larga contenida en [text]. Las etiquetas de pinyin
+     * provienen de nodos completos ("锁定屏幕", "账户与同步"), así que la
+     * búsqueda exacta suele fallar; esta consulta elige el término léxico más
+     * largo que aparece en el texto, que es el que aporta la traducción útil.
+     * Es una única consulta indexada por longitud sobre ~5k filas.
+     */
+    override fun lookupContained(text: String): DictionaryEntry? {
+        if (text.length < 2) return null
+        val haystack = if (text.length > MAX_CONTAINED_CHARS) {
+            text.substring(0, MAX_CONTAINED_CHARS)
+        } else {
+            text
+        }
+        db.rawQuery(
+            "SELECT simplified, traditional, pinyin, english, spanish FROM entries " +
+                "WHERE length(simplified) >= 2 AND instr(?, simplified) > 0 " +
+                "ORDER BY length(simplified) DESC, instr(?, simplified) ASC LIMIT 1",
+            arrayOf(haystack, haystack),
+        ).use { cur ->
+            if (!cur.moveToFirst()) return null
+            return DictionaryEntry(
+                simplified = cur.getString(0),
+                traditional = cur.getString(1) ?: cur.getString(0),
+                pinyin = cur.getString(2) ?: "",
+                english = splitGlosses(cur.getString(3)),
+                spanish = splitGlosses(cur.getString(4)),
+            )
+        }
+    }
+
     private fun queryOne(key: String): DictionaryEntry? {
         db.rawQuery(
             "SELECT simplified, traditional, pinyin, english, spanish FROM entries WHERE simplified = ? LIMIT 1",
@@ -54,6 +85,9 @@ class SqliteDictionary private constructor(
         const val GLOSS_SEP = "\u001f"
         const val DB_NAME = "pinyinlens_dict.db"
         const val DB_VERSION = 1
+
+        /** Tope de texto analizado en la búsqueda contenida (rendimiento). */
+        private const val MAX_CONTAINED_CHARS = 256
 
         /** Abre (o crea) la base en el almacenamiento de la app. */
         fun open(context: Context): SqliteDictionary {

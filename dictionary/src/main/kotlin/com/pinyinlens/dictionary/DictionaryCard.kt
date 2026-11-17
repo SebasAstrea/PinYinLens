@@ -25,8 +25,11 @@ data class DictionaryCard(
 object DictionaryCardBuilder {
 
     fun build(word: String, source: DictionarySource): DictionaryCard? {
-        val entry = source.lookup(word) ?: return null
-        val breakdown = word.map { c ->
+        // La etiqueta puede ser un nodo de texto completo (una frase): si no hay
+        // entrada exacta, se usa la entrada más larga contenida en el texto.
+        val entry = source.lookup(word) ?: source.lookupContained(word) ?: return null
+        val term = entry.simplified
+        val breakdown = term.map { c ->
             val ce = source.lookupChar(c)
             CharacterGloss(
                 char = c.toString(),

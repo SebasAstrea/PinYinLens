@@ -24,6 +24,7 @@ android {
 
 dependencies {
     implementation(project(":pinyin"))
+    implementation(project(":ocr"))
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
